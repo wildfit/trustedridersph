@@ -14,16 +14,354 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      fee_categories: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      fee_entries: {
+        Row: {
+          amount_php: number
+          category_id: string
+          created_at: string
+          driver_id: string
+          id: string
+          logged_at: string
+          note: string | null
+          shift_id: string | null
+        }
+        Insert: {
+          amount_php: number
+          category_id: string
+          created_at?: string
+          driver_id: string
+          id?: string
+          logged_at?: string
+          note?: string | null
+          shift_id?: string | null
+        }
+        Update: {
+          amount_php?: number
+          category_id?: string
+          created_at?: string
+          driver_id?: string
+          id?: string
+          logged_at?: string
+          note?: string | null
+          shift_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_entries_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "fee_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fee_entries_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_logs: {
+        Row: {
+          created_at: string
+          driver_id: string
+          id: string
+          liters: number
+          logged_at: string
+          odometer_km: number | null
+          price_per_liter_php: number
+          shift_id: string | null
+          total_cost_php: number
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          id?: string
+          liters: number
+          logged_at?: string
+          odometer_km?: number | null
+          price_per_liter_php: number
+          shift_id?: string | null
+          total_cost_php: number
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          id?: string
+          liters?: number
+          logged_at?: string
+          odometer_km?: number | null
+          price_per_liter_php?: number
+          shift_id?: string | null
+          total_cost_php?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_logs_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          first_sign_in_completed: boolean
+          fuel_tank_liters: number | null
+          full_name: string | null
+          id: string
+          motorcycle_brand: string | null
+          motorcycle_model: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          first_sign_in_completed?: boolean
+          fuel_tank_liters?: number | null
+          full_name?: string | null
+          id: string
+          motorcycle_brand?: string | null
+          motorcycle_model?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          first_sign_in_completed?: boolean
+          fuel_tank_liters?: number | null
+          full_name?: string | null
+          id?: string
+          motorcycle_brand?: string | null
+          motorcycle_model?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      security_questions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          question_text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          question_text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          question_text?: string
+        }
+        Relationships: []
+      }
+      shifts: {
+        Row: {
+          created_at: string
+          driver_id: string
+          ended_at: string | null
+          ending_odometer_km: number | null
+          id: string
+          notes: string | null
+          started_at: string
+          starting_odometer_km: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          ended_at?: string | null
+          ending_odometer_km?: number | null
+          id?: string
+          notes?: string | null
+          started_at?: string
+          starting_odometer_km?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          ended_at?: string | null
+          ending_odometer_km?: number | null
+          id?: string
+          notes?: string | null
+          started_at?: string
+          starting_odometer_km?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trips: {
+        Row: {
+          created_at: string
+          distance_km: number | null
+          driver_id: string
+          ended_at: string | null
+          gross_fare_php: number
+          id: string
+          notes: string | null
+          service_type: Database["public"]["Enums"]["service_type"]
+          shift_id: string | null
+          started_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          distance_km?: number | null
+          driver_id: string
+          ended_at?: string | null
+          gross_fare_php?: number
+          id?: string
+          notes?: string | null
+          service_type: Database["public"]["Enums"]["service_type"]
+          shift_id?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          distance_km?: number | null
+          driver_id?: string
+          ended_at?: string | null
+          gross_fare_php?: number
+          id?: string
+          notes?: string | null
+          service_type?: Database["public"]["Enums"]["service_type"]
+          shift_id?: string | null
+          started_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_security_answers: {
+        Row: {
+          answer_hash: string
+          created_at: string
+          id: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          answer_hash: string
+          created_at?: string
+          id?: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          answer_hash?: string
+          created_at?: string
+          id?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_security_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "security_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      hash_security_answer: { Args: { _answer: string }; Returns: string }
+      verify_security_answer: {
+        Args: { _answer: string; _hash: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "driver" | "admin" | "superadmin"
+      service_type: "angkas" | "pabakal" | "padala"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +488,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["driver", "admin", "superadmin"],
+      service_type: ["angkas", "pabakal", "padala"],
+    },
   },
 } as const
