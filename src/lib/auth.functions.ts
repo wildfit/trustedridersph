@@ -50,11 +50,14 @@ export const getSecurityQuestionsForEmail = createServerFn({ method: "POST" })
 
     return {
       userId: user.id,
-      questions: (rows ?? []).map((r) => ({
-        id: r.question_id as string,
-        // @ts-expect-error — joined column shape
-        text: r.security_questions?.question_text as string,
-      })),
+      questions: (rows ?? []).map((r) => {
+        const sq = r.security_questions as unknown as
+          | { question_text: string }
+          | { question_text: string }[]
+          | null;
+        const text = Array.isArray(sq) ? sq[0]?.question_text : sq?.question_text;
+        return { id: r.question_id as string, text: text ?? "" };
+      }),
     };
   });
 
