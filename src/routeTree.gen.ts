@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShiftsRouteImport } from './routes/shifts'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ShiftsRoute = ShiftsRouteImport.update({
+  id: '/shifts',
+  path: '/shifts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/shifts': typeof ShiftsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/shifts': typeof ShiftsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,27 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/shifts': typeof ShiftsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/account' | '/forgot-password' | '/login' | '/setup'
+  fullPaths:
+    | '/'
+    | '/account'
+    | '/forgot-password'
+    | '/login'
+    | '/setup'
+    | '/shifts'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/account' | '/forgot-password' | '/login' | '/setup'
-  id: '__root__' | '/' | '/account' | '/forgot-password' | '/login' | '/setup'
+  to: '/' | '/account' | '/forgot-password' | '/login' | '/setup' | '/shifts'
+  id:
+    | '__root__'
+    | '/'
+    | '/account'
+    | '/forgot-password'
+    | '/login'
+    | '/setup'
+    | '/shifts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,10 +99,18 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
+  ShiftsRoute: typeof ShiftsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/shifts': {
+      id: '/shifts'
+      path: '/shifts'
+      fullPath: '/shifts'
+      preLoaderRoute: typeof ShiftsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/setup': {
       id: '/setup'
       path: '/setup'
@@ -125,7 +155,18 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
+  ShiftsRoute: ShiftsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
