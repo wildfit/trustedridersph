@@ -180,3 +180,45 @@ export const ensureSuperadminSeeded = createServerFn({ method: "POST" }).handler
     return { ok: true as const, userId };
   },
 );
+
+// ---------------------------------------------------------------------------
+// Seed two sample driver accounts using the default driver password.
+// Idempotent — skips drivers that already exist. They will land on /setup
+// the first time they sign in (first_sign_in_completed defaults to false).
+// ---------------------------------------------------------------------------
+export const seedSampleDrivers = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const password =
+      (await getSetting<string>("default_driver_password")) ?? "Welcome312";
+
+    const samples = [
+      { email: "driver1@trustedriders.ph", full_name: "Juan dela Cruz" },
+      { email: "driver2@trustedriders.ph", full_name: "Maria Santos" },
+    ];
+
+    const { data: list, error: listErr } =
+      await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+    if (listErr) throw new Error(listErr.message);
+
+    const results: { email: string; userId: string; created: boolean }[] = [];
+    for (const s of samples) {
+      const existing = list.users.find(
+        (u) => u.email?.toLowerCase() === s.email.toLowerCase(),
+      );
+      if (existing) {
+        results.push({ email: s.email, userId: existing.id, created: false });
+        continue;
+      }
+      const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+        email: s.email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: s.full_name },
+      });
+      if (error) throw new Error(error.message);
+      results.push({ email: s.email, userId: created.user!.id, created: true });
+    }
+
+    return { ok: true as const, password, drivers: results };
+  },
+);
