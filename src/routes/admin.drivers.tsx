@@ -71,7 +71,7 @@ function Drivers() {
                   <div className="flex gap-2 justify-end flex-wrap">
                     <button
                       className="btn-sm"
-                      onClick={() => enableMut.mutate({ data: { driverId: d.id, enabled: !d.is_enabled } })}
+                      onClick={() => enableMut.mutate({ driverId: d.id, enabled: !d.is_enabled })}
                     >
                       <Power className="size-3.5" /> {d.is_enabled ? "Disable" : "Enable"}
                     </button>
