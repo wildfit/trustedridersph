@@ -28,12 +28,12 @@ import { useState } from "react";
 export const Route = createFileRoute("/admin")({ component: AdminLayout });
 
 const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/drivers", label: "Drivers", icon: Users },
-  { to: "/records", label: "Records", icon: ClipboardList },
-  { to: "/fees", label: "Fee Categories", icon: Tags },
-  { to: "/settings", label: "Settings", icon: Settings },
-  { to: "/export", label: "Export", icon: Download },
+  { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/drivers", label: "Drivers", icon: Users },
+  { to: "/admin/records", label: "Records", icon: ClipboardList },
+  { to: "/admin/fees", label: "Fee Categories", icon: Tags },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
+  { to: "/admin/export", label: "Export", icon: Download },
 ] as const;
 
 function AdminLayout() {
