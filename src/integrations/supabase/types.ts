@@ -193,6 +193,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_enabled: boolean
+          last_seen_at: string | null
           motorcycle_brand: string | null
           motorcycle_model: string | null
           phone: string | null
@@ -209,6 +210,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_enabled?: boolean
+          last_seen_at?: string | null
           motorcycle_brand?: string | null
           motorcycle_model?: string | null
           phone?: string | null
@@ -225,6 +227,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_enabled?: boolean
+          last_seen_at?: string | null
           motorcycle_brand?: string | null
           motorcycle_model?: string | null
           phone?: string | null
@@ -342,6 +345,48 @@ export type Database = {
           },
         ]
       }
+      user_requests: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          driver_id: string
+          id: string
+          message: string | null
+          proposed: Json | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["request_status"]
+          type: Database["public"]["Enums"]["request_type"]
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          driver_id: string
+          id?: string
+          message?: string | null
+          proposed?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          type: Database["public"]["Enums"]["request_type"]
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          driver_id?: string
+          id?: string
+          message?: string | null
+          proposed?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["request_status"]
+          type?: Database["public"]["Enums"]["request_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -415,6 +460,8 @@ export type Database = {
     }
     Enums: {
       app_role: "driver" | "admin" | "superadmin"
+      request_status: "pending" | "approved" | "rejected"
+      request_type: "profile_change" | "resubscribe"
       service_type: "angkas" | "pabakal" | "padala"
     }
     CompositeTypes: {
@@ -544,6 +591,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["driver", "admin", "superadmin"],
+      request_status: ["pending", "approved", "rejected"],
+      request_type: ["profile_change", "resubscribe"],
       service_type: ["angkas", "pabakal", "padala"],
     },
   },
