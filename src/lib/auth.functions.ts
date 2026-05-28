@@ -130,18 +130,30 @@ export const resetPasswordWithAnswers = createServerFn({ method: "POST" })
 // Reads SUPERADMIN_DEFAULT_PASSWORD from env (set as a project secret).
 // Idempotent — safe to call multiple times.
 // ---------------------------------------------------------------------------
-export const ensureSuperadminSeeded = createServerFn({ method: "POST" }).handler(
-  async () => {
-    const email =
-      (await getSetting<string>("superadmin_email")) ?? "admin@trustedriders.ph";
-    const username =
-      (await getSetting<string>("superadmin_username")) ?? "Admin";
+// ---------------------------------------------------------------------------
+// Seed the Superadmin account.
+// Requires the caller to supply the SUPERADMIN_DEFAULT_PASSWORD secret value
+// as a bootstrap token, so this endpoint cannot be invoked anonymously by
+// internet callers. Idempotent.
+// ---------------------------------------------------------------------------
+export const ensureSuperadminSeeded = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z.object({ bootstrapToken: z.string().min(1).max(200) }).parse(d),
+  )
+  .handler(async ({ data }) => {
     const password = process.env.SUPERADMIN_DEFAULT_PASSWORD;
     if (!password) {
       return { ok: false as const, reason: "missing-secret" as const };
     }
+    if (data.bootstrapToken !== password) {
+      return { ok: false as const, reason: "forbidden" as const };
+    }
 
-    // Already exists?
+    const email =
+      (await getSetting<string>("superadmin_email")) ?? "admin@trustedriders.ph";
+    const username =
+      (await getSetting<string>("superadmin_username")) ?? "Admin";
+
     const { data: list } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
       perPage: 200,
@@ -164,12 +176,10 @@ export const ensureSuperadminSeeded = createServerFn({ method: "POST" }).handler
       userId = created.user!.id;
     }
 
-    // Ensure superadmin role is assigned.
     await supabaseAdmin
       .from("user_roles")
       .upsert({ user_id: userId, role: "superadmin" }, { onConflict: "user_id,role" });
 
-    // Mark wizard complete for admin so they don't go through driver onboarding.
     await supabaseAdmin
       .from("profiles")
       .upsert(
@@ -177,17 +187,29 @@ export const ensureSuperadminSeeded = createServerFn({ method: "POST" }).handler
         { onConflict: "id" },
       );
 
-    return { ok: true as const, userId };
-  },
-);
+    // Do not return the user id — callers don't need it and exposing it
+    // leaks the admin account identifier.
+    return { ok: true as const };
+  });
 
 // ---------------------------------------------------------------------------
-// Seed two sample driver accounts using the default driver password.
-// Idempotent — skips drivers that already exist. They will land on /setup
-// the first time they sign in (first_sign_in_completed defaults to false).
+// Seed two sample driver accounts. Admin/superadmin only; never returns the
+// plaintext password in the response.
 // ---------------------------------------------------------------------------
-export const seedSampleDrivers = createServerFn({ method: "POST" }).handler(
-  async () => {
+export const seedSampleDrivers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    // Authorize: caller must be admin/superadmin.
+    const { data: roleRows, error: roleErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    if (roleErr) throw new Error(roleErr.message);
+    const roles = (roleRows ?? []).map((r) => r.role);
+    if (!roles.includes("admin") && !roles.includes("superadmin")) {
+      throw new Error("Forbidden");
+    }
+
     const password =
       (await getSetting<string>("default_driver_password")) ?? "Welcome312";
 
@@ -200,25 +222,27 @@ export const seedSampleDrivers = createServerFn({ method: "POST" }).handler(
       await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
     if (listErr) throw new Error(listErr.message);
 
-    const results: { email: string; userId: string; created: boolean }[] = [];
+    const results: { email: string; created: boolean }[] = [];
     for (const s of samples) {
       const existing = list.users.find(
         (u) => u.email?.toLowerCase() === s.email.toLowerCase(),
       );
       if (existing) {
-        results.push({ email: s.email, userId: existing.id, created: false });
+        results.push({ email: s.email, created: false });
         continue;
       }
-      const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      const { data: _created, error } = await supabaseAdmin.auth.admin.createUser({
         email: s.email,
         password,
         email_confirm: true,
         user_metadata: { full_name: s.full_name },
       });
       if (error) throw new Error(error.message);
-      results.push({ email: s.email, userId: created.user!.id, created: true });
+      results.push({ email: s.email, created: true });
     }
 
-    return { ok: true as const, password, drivers: results };
-  },
-);
+    // Do NOT return the plaintext default password. Admins can retrieve/rotate
+    // it through dedicated admin settings endpoints.
+    return { ok: true as const, drivers: results };
+  });
+
