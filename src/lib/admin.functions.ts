@@ -34,8 +34,8 @@ async function logAudit(args: {
     entity_type: args.entityType,
     entity_id: args.entityId,
     action: args.action,
-    before: (args.before as object) ?? null,
-    after: (args.after as object) ?? null,
+    before: (args.before ?? null) as never,
+    after: (args.after ?? null) as never,
   });
 }
 

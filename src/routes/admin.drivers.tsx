@@ -21,14 +21,16 @@ function Drivers() {
   const [accessFor, setAccessFor] = useState<Driver | null>(null);
   const [pwResult, setPwResult] = useState<{ email: string; pw: string } | null>(null);
 
+  const enableFn = useServerFn(setDriverEnabled);
+  const resetFn = useServerFn(resetDriverPassword);
   const enableMut = useMutation({
-    mutationFn: useServerFn(setDriverEnabled),
+    mutationFn: (vars: { driverId: string; enabled: boolean }) => enableFn({ data: vars }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-drivers"] }),
   });
   const resetMut = useMutation({
-    mutationFn: useServerFn(resetDriverPassword),
-    onSuccess: (r, vars) => {
-      const drv = q.data?.find((d) => d.id === vars.data.driverId);
+    mutationFn: (vars: { driverId: string }) => resetFn({ data: vars }),
+    onSuccess: (r: { password: string }, vars) => {
+      const drv = q.data?.find((d) => d.id === vars.driverId);
       if (drv) setPwResult({ email: drv.email, pw: r.password });
     },
   });
@@ -41,7 +43,9 @@ function Drivers() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
-              <Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>Status</Th><Th>Access</Th>
+              {["Name","Email","Phone","Status","Access"].map((h) => (
+                <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+              ))}
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -69,7 +73,7 @@ function Drivers() {
                   <div className="flex gap-2 justify-end flex-wrap">
                     <button
                       className="btn-sm"
-                      onClick={() => enableMut.mutate({ data: { driverId: d.id, enabled: !d.is_enabled } })}
+                      onClick={() => enableMut.mutate({ driverId: d.id, enabled: !d.is_enabled })}
                     >
                       <Power className="size-3.5" /> {d.is_enabled ? "Disable" : "Enable"}
                     </button>
@@ -80,7 +84,7 @@ function Drivers() {
                       className="btn-sm"
                       onClick={() => {
                         if (confirm(`Reset password for ${d.email}?`))
-                          resetMut.mutate({ data: { driverId: d.id } });
+                          resetMut.mutate({ driverId: d.id });
                       }}
                     >
                       <KeyRound className="size-3.5" /> Reset PW
