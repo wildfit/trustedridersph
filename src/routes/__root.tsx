@@ -11,7 +11,6 @@ import {
 
 import appCss from "../styles.css?url";
 import { supabase } from "@/integrations/supabase/client";
-import { ensureSuperadminSeeded } from "@/lib/auth.functions";
 
 function NotFoundComponent() {
   return (
@@ -121,21 +120,11 @@ function AuthSync() {
   }, [router, queryClient]);
   return null;
 }
-
-function SuperadminBootstrap() {
-  useEffect(() => {
-    // Idempotent — safe to call on every cold start of the app.
-    ensureSuperadminSeeded().catch((e) => console.warn("seed superadmin:", e));
-  }, []);
-  return null;
-}
-
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
       <AuthSync />
-      <SuperadminBootstrap />
       <Outlet />
     </QueryClientProvider>
   );
