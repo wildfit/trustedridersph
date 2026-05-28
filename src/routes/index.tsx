@@ -1,17 +1,26 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
+import { getMyRole } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/")({ component: HomeRedirect });
 
-/** Send signed-in drivers straight to the daily-use Shift screen. */
+/** Route the signed-in user to the right home: admins → dashboard, drivers → shift. */
 function HomeRedirect() {
   const session = useAuthSession();
+  const fetchRole = useServerFn(getMyRole);
+
+  const role = useQuery({
+    queryKey: ["my-role", session?.user.id],
+    enabled: !!session,
+    queryFn: () => fetchRole(),
+  });
+
   const profile = useQuery({
     queryKey: ["profile-first-signin", session?.user.id],
-    enabled: !!session,
+    enabled: !!session && role.data?.isAdmin === false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
@@ -25,6 +34,8 @@ function HomeRedirect() {
 
   if (session === undefined) return <Spinner />;
   if (session === null) return <Navigate to="/login" />;
+  if (role.isLoading || !role.data) return <Spinner />;
+  if (role.data.isAdmin) return <Navigate to="/admin/dashboard" />;
   if (profile.isLoading || !profile.data) return <Spinner />;
   if (!profile.data.first_sign_in_completed) return <Navigate to="/setup" />;
   return <Navigate to="/shift" />;
@@ -37,6 +48,3 @@ function Spinner() {
     </div>
   );
 }
-
-// suppress unused-import warning if hook code-gen rearranges
-void useEffect;

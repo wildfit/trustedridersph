@@ -1,11 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   createFileRoute,
   Link,
   Navigate,
   Outlet,
   useLocation,
-  useNavigate,
 } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -23,7 +22,6 @@ import {
   Bike,
   Menu,
 } from "lucide-react";
-import { useState } from "react";
 
 export const Route = createFileRoute("/admin")({ component: AdminLayout });
 
@@ -144,5 +142,3 @@ function SidebarContent() {
   );
 }
 
-// avoid TS unused warning when no nav hook is invoked
-export const _unused = useNavigate;
