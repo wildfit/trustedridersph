@@ -43,7 +43,9 @@ function Drivers() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
-              <Th>Name</Th><Th>Email</Th><Th>Phone</Th><Th>Status</Th><Th>Access</Th>
+              {["Name","Email","Phone","Status","Access"].map((h) => (
+                <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+              ))}
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
