@@ -24,6 +24,8 @@ import { Route as ShiftStartRouteImport } from './routes/shift.start'
 import { Route as ShiftEndRouteImport } from './routes/shift.end'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminRecordsRouteImport } from './routes/admin.records'
+import { Route as AdminLiveRouteImport } from './routes/admin.live'
+import { Route as AdminInboxRouteImport } from './routes/admin.inbox'
 import { Route as AdminFeesRouteImport } from './routes/admin.fees'
 import { Route as AdminExportRouteImport } from './routes/admin.export'
 import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
@@ -104,6 +106,16 @@ const AdminRecordsRoute = AdminRecordsRouteImport.update({
   path: '/records',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminLiveRoute = AdminLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminInboxRoute = AdminInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFeesRoute = AdminFeesRouteImport.update({
   id: '/fees',
   path: '/fees',
@@ -138,6 +150,8 @@ export interface FileRoutesByFullPath {
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/export': typeof AdminExportRoute
   '/admin/fees': typeof AdminFeesRoute
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/shift/end': typeof ShiftEndRoute
@@ -159,6 +173,8 @@ export interface FileRoutesByTo {
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/export': typeof AdminExportRoute
   '/admin/fees': typeof AdminFeesRoute
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/shift/end': typeof ShiftEndRoute
@@ -181,6 +197,8 @@ export interface FileRoutesById {
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/export': typeof AdminExportRoute
   '/admin/fees': typeof AdminFeesRoute
+  '/admin/inbox': typeof AdminInboxRoute
+  '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/shift/end': typeof ShiftEndRoute
@@ -204,6 +222,8 @@ export interface FileRouteTypes {
     | '/admin/drivers'
     | '/admin/export'
     | '/admin/fees'
+    | '/admin/inbox'
+    | '/admin/live'
     | '/admin/records'
     | '/admin/settings'
     | '/shift/end'
@@ -225,6 +245,8 @@ export interface FileRouteTypes {
     | '/admin/drivers'
     | '/admin/export'
     | '/admin/fees'
+    | '/admin/inbox'
+    | '/admin/live'
     | '/admin/records'
     | '/admin/settings'
     | '/shift/end'
@@ -246,6 +268,8 @@ export interface FileRouteTypes {
     | '/admin/drivers'
     | '/admin/export'
     | '/admin/fees'
+    | '/admin/inbox'
+    | '/admin/live'
     | '/admin/records'
     | '/admin/settings'
     | '/shift/end'
@@ -378,6 +402,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRecordsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/live': {
+      id: '/admin/live'
+      path: '/live'
+      fullPath: '/admin/live'
+      preLoaderRoute: typeof AdminLiveRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/inbox': {
+      id: '/admin/inbox'
+      path: '/inbox'
+      fullPath: '/admin/inbox'
+      preLoaderRoute: typeof AdminInboxRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/fees': {
       id: '/admin/fees'
       path: '/fees'
@@ -414,6 +452,8 @@ interface AdminRouteChildren {
   AdminDriversRoute: typeof AdminDriversRoute
   AdminExportRoute: typeof AdminExportRoute
   AdminFeesRoute: typeof AdminFeesRoute
+  AdminInboxRoute: typeof AdminInboxRoute
+  AdminLiveRoute: typeof AdminLiveRoute
   AdminRecordsRoute: typeof AdminRecordsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
 }
@@ -423,6 +463,8 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDriversRoute: AdminDriversRoute,
   AdminExportRoute: AdminExportRoute,
   AdminFeesRoute: AdminFeesRoute,
+  AdminInboxRoute: AdminInboxRoute,
+  AdminLiveRoute: AdminLiveRoute,
   AdminRecordsRoute: AdminRecordsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
 }

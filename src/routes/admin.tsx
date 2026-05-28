@@ -21,12 +21,16 @@ import {
   LogOut,
   Bike,
   Menu,
+  Inbox,
+  Radio,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({ component: AdminLayout });
 
 const NAV = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/live", label: "Live", icon: Radio },
+  { to: "/admin/inbox", label: "Inbox", icon: Inbox },
   { to: "/admin/drivers", label: "Drivers", icon: Users },
   { to: "/admin/records", label: "Records", icon: ClipboardList },
   { to: "/admin/fees", label: "Fee Categories", icon: Tags },
