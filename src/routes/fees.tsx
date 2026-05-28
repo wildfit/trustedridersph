@@ -51,9 +51,9 @@ function FeesPage() {
             <div className="size-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
               <Wallet className="size-8" />
             </div>
-            <h2 className="text-xl font-semibold mt-4">No active shift</h2>
+            <h2 className="text-xl font-semibold mt-4">Start a shift first</h2>
             <p className="text-muted-foreground mt-2 max-w-xs">
-              Start a shift first, then log any tips, tariffs, tolls, or other fees here.
+              Fees (tips, tolls, tariffs) are tracked per shift so they roll into that shift's earnings summary and your export reports. Start a shift, then come back here to log them.
             </p>
             <Link to="/shift/start" className="btn-primary mt-6">Start shift</Link>
           </div>
