@@ -330,7 +330,7 @@ function ProfileChangeDialog({
           onChange={(v) => setValues((s) => ({ ...s, motorcycle_model: v }))} />
         <Field label="Fuel tank (L)" type="number" step="0.1"
           value={values.fuel_tank_liters?.toString() ?? ""}
-          onChange={(v) => setValues((s) => ({ ...s, fuel_tank_liters: v === "" ? undefined : Number(v) }))} />
+          onChange={(v) => setValues((s) => ({ ...s, fuel_tank_liters: v === "" ? "" : Number(v) }))} />
         <div>
           <label className="text-sm font-medium">Note to admin (optional)</label>
           <textarea
