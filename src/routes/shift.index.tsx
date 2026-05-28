@@ -8,7 +8,7 @@ import { computeShift } from "@/lib/shift-math";
 import { php, km } from "@/lib/format";
 import { Play, Plus, StopCircle, Bike } from "lucide-react";
 
-export const Route = createFileRoute("/shift")({ component: ShiftPage });
+export const Route = createFileRoute("/shift/")({ component: ShiftPage });
 
 function ShiftPage() {
   const session = useAuthSession();

@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ShiftRouteImport } from './routes/shift'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
@@ -18,6 +17,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FeesRouteImport } from './routes/fees'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShiftIndexRouteImport } from './routes/shift.index'
 import { Route as ShiftTripRouteImport } from './routes/shift.trip'
 import { Route as ShiftSummaryRouteImport } from './routes/shift.summary'
 import { Route as ShiftStartRouteImport } from './routes/shift.start'
@@ -29,11 +29,6 @@ import { Route as AdminExportRouteImport } from './routes/admin.export'
 import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
 import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 
-const ShiftRoute = ShiftRouteImport.update({
-  id: '/shift',
-  path: '/shift',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
@@ -74,25 +69,30 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShiftIndexRoute = ShiftIndexRouteImport.update({
+  id: '/shift/',
+  path: '/shift/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShiftTripRoute = ShiftTripRouteImport.update({
-  id: '/trip',
-  path: '/trip',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/trip',
+  path: '/shift/trip',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftSummaryRoute = ShiftSummaryRouteImport.update({
-  id: '/summary',
-  path: '/summary',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/summary',
+  path: '/shift/summary',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftStartRoute = ShiftStartRouteImport.update({
-  id: '/start',
-  path: '/start',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/start',
+  path: '/shift/start',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftEndRoute = ShiftEndRouteImport.update({
-  id: '/end',
-  path: '/end',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/end',
+  path: '/shift/end',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
@@ -134,7 +134,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
-  '/shift': typeof ShiftRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/export': typeof AdminExportRoute
@@ -145,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
   '/shift/trip': typeof ShiftTripRoute
+  '/shift/': typeof ShiftIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -155,7 +155,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
-  '/shift': typeof ShiftRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/export': typeof AdminExportRoute
@@ -166,6 +165,7 @@ export interface FileRoutesByTo {
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
   '/shift/trip': typeof ShiftTripRoute
+  '/shift': typeof ShiftIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -177,7 +177,6 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
-  '/shift': typeof ShiftRouteWithChildren
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/drivers': typeof AdminDriversRoute
   '/admin/export': typeof AdminExportRoute
@@ -188,6 +187,7 @@ export interface FileRoutesById {
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
   '/shift/trip': typeof ShiftTripRoute
+  '/shift/': typeof ShiftIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -200,7 +200,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/setup'
-    | '/shift'
     | '/admin/dashboard'
     | '/admin/drivers'
     | '/admin/export'
@@ -211,6 +210,7 @@ export interface FileRouteTypes {
     | '/shift/start'
     | '/shift/summary'
     | '/shift/trip'
+    | '/shift/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -221,7 +221,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/setup'
-    | '/shift'
     | '/admin/dashboard'
     | '/admin/drivers'
     | '/admin/export'
@@ -232,6 +231,7 @@ export interface FileRouteTypes {
     | '/shift/start'
     | '/shift/summary'
     | '/shift/trip'
+    | '/shift'
   id:
     | '__root__'
     | '/'
@@ -242,7 +242,6 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/setup'
-    | '/shift'
     | '/admin/dashboard'
     | '/admin/drivers'
     | '/admin/export'
@@ -253,6 +252,7 @@ export interface FileRouteTypes {
     | '/shift/start'
     | '/shift/summary'
     | '/shift/trip'
+    | '/shift/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -264,18 +264,15 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   SetupRoute: typeof SetupRoute
-  ShiftRoute: typeof ShiftRouteWithChildren
+  ShiftEndRoute: typeof ShiftEndRoute
+  ShiftStartRoute: typeof ShiftStartRoute
+  ShiftSummaryRoute: typeof ShiftSummaryRoute
+  ShiftTripRoute: typeof ShiftTripRoute
+  ShiftIndexRoute: typeof ShiftIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/shift': {
-      id: '/shift'
-      path: '/shift'
-      fullPath: '/shift'
-      preLoaderRoute: typeof ShiftRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/setup': {
       id: '/setup'
       path: '/setup'
@@ -332,33 +329,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shift/': {
+      id: '/shift/'
+      path: '/shift'
+      fullPath: '/shift/'
+      preLoaderRoute: typeof ShiftIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/shift/trip': {
       id: '/shift/trip'
-      path: '/trip'
+      path: '/shift/trip'
       fullPath: '/shift/trip'
       preLoaderRoute: typeof ShiftTripRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/shift/summary': {
       id: '/shift/summary'
-      path: '/summary'
+      path: '/shift/summary'
       fullPath: '/shift/summary'
       preLoaderRoute: typeof ShiftSummaryRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/shift/start': {
       id: '/shift/start'
-      path: '/start'
+      path: '/shift/start'
       fullPath: '/shift/start'
       preLoaderRoute: typeof ShiftStartRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/shift/end': {
       id: '/shift/end'
-      path: '/end'
+      path: '/shift/end'
       fullPath: '/shift/end'
       preLoaderRoute: typeof ShiftEndRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/admin/settings': {
       id: '/admin/settings'
@@ -425,22 +429,6 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface ShiftRouteChildren {
-  ShiftEndRoute: typeof ShiftEndRoute
-  ShiftStartRoute: typeof ShiftStartRoute
-  ShiftSummaryRoute: typeof ShiftSummaryRoute
-  ShiftTripRoute: typeof ShiftTripRoute
-}
-
-const ShiftRouteChildren: ShiftRouteChildren = {
-  ShiftEndRoute: ShiftEndRoute,
-  ShiftStartRoute: ShiftStartRoute,
-  ShiftSummaryRoute: ShiftSummaryRoute,
-  ShiftTripRoute: ShiftTripRoute,
-}
-
-const ShiftRouteWithChildren = ShiftRoute._addFileChildren(ShiftRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -450,7 +438,11 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   SetupRoute: SetupRoute,
-  ShiftRoute: ShiftRouteWithChildren,
+  ShiftEndRoute: ShiftEndRoute,
+  ShiftStartRoute: ShiftStartRoute,
+  ShiftSummaryRoute: ShiftSummaryRoute,
+  ShiftTripRoute: ShiftTripRoute,
+  ShiftIndexRoute: ShiftIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
