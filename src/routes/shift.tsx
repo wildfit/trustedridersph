@@ -78,7 +78,7 @@ function ActiveShift({
   startedAt: string;
   trips: { distance_km: number | null; gross_fare_php: number; service_type: string; id: string }[];
   fuelLogs: { total_cost_php: number; liters: number | null }[];
-  feeEntries: { amount_php: number; category: { entry_type: "income" | "expense" } | null }[];
+  feeEntries: { amount_php: number; category: { entry_type: string } | null }[];
   gasRate: number | null;
 }) {
   const math = computeShift({
