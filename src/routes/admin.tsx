@@ -142,5 +142,3 @@ function SidebarContent() {
   );
 }
 
-// avoid TS unused warning when no nav hook is invoked
-export const _unused = useNavigate;
