@@ -32,6 +32,39 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string
+          after: Json | null
+          before: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
       fee_categories: {
         Row: {
           created_at: string
@@ -150,36 +183,48 @@ export type Database = {
       }
       profiles: {
         Row: {
+          access_ends_at: string | null
+          access_mode: string
+          access_starts_at: string | null
           avatar_url: string | null
           created_at: string
           first_sign_in_completed: boolean
           fuel_tank_liters: number | null
           full_name: string | null
           id: string
+          is_enabled: boolean
           motorcycle_brand: string | null
           motorcycle_model: string | null
           phone: string | null
           updated_at: string
         }
         Insert: {
+          access_ends_at?: string | null
+          access_mode?: string
+          access_starts_at?: string | null
           avatar_url?: string | null
           created_at?: string
           first_sign_in_completed?: boolean
           fuel_tank_liters?: number | null
           full_name?: string | null
           id: string
+          is_enabled?: boolean
           motorcycle_brand?: string | null
           motorcycle_model?: string | null
           phone?: string | null
           updated_at?: string
         }
         Update: {
+          access_ends_at?: string | null
+          access_mode?: string
+          access_starts_at?: string | null
           avatar_url?: string | null
           created_at?: string
           first_sign_in_completed?: boolean
           fuel_tank_liters?: number | null
           full_name?: string | null
           id?: string
+          is_enabled?: boolean
           motorcycle_brand?: string | null
           motorcycle_model?: string | null
           phone?: string | null
