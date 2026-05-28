@@ -21,14 +21,16 @@ function Drivers() {
   const [accessFor, setAccessFor] = useState<Driver | null>(null);
   const [pwResult, setPwResult] = useState<{ email: string; pw: string } | null>(null);
 
+  const enableFn = useServerFn(setDriverEnabled);
+  const resetFn = useServerFn(resetDriverPassword);
   const enableMut = useMutation({
-    mutationFn: useServerFn(setDriverEnabled),
+    mutationFn: (vars: { driverId: string; enabled: boolean }) => enableFn({ data: vars }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-drivers"] }),
   });
   const resetMut = useMutation({
-    mutationFn: useServerFn(resetDriverPassword),
-    onSuccess: (r, vars) => {
-      const drv = q.data?.find((d) => d.id === vars.data.driverId);
+    mutationFn: (vars: { driverId: string }) => resetFn({ data: vars }),
+    onSuccess: (r: { password: string }, vars) => {
+      const drv = q.data?.find((d) => d.id === vars.driverId);
       if (drv) setPwResult({ email: drv.email, pw: r.password });
     },
   });
