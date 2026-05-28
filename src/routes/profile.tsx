@@ -238,7 +238,7 @@ function ProfilePage() {
             phone: p.phone ?? "",
             motorcycle_brand: p.motorcycle_brand ?? "",
             motorcycle_model: p.motorcycle_model ?? "",
-            fuel_tank_liters: p.fuel_tank_liters ?? undefined,
+            fuel_tank_liters: p.fuel_tank_liters ?? "",
           }}
           onClose={() => setEditing(false)}
           onSubmitted={() => {
