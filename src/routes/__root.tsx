@@ -11,7 +11,6 @@ import {
 
 import appCss from "../styles.css?url";
 import { supabase } from "@/integrations/supabase/client";
-import { ensureSuperadminSeeded } from "@/lib/auth.functions";
 
 function NotFoundComponent() {
   return (
