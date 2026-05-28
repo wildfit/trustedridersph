@@ -1,105 +1,115 @@
-# Trusted Riders — Phase 1 Build Plan
+## Phase 2 Plan — Driver UI
 
-A mobile-first PWA for Filipino motorcycle drivers to log shifts and see real earnings after fuel. This phase delivers the foundation: backend, auth, schema, and the first-time setup wizard. Trip logging, fuel logs, and earnings reports come in later phases.
+Builds the working driver app on top of Phase 1 (auth, profile, roles, brand). UX rule stays: one big primary action per screen, big tap targets, large text, plain language, numeric keypads, confirmations on destructive actions.
 
----
+### Navigation change
 
-## 1. Foundation
+Replace the current 4-tab bottom nav (Home / Shifts / Earnings / Account) with the spec'd 4 tabs:
 
-- **Enable Lovable Cloud** (Postgres + Auth + Storage + Server Functions).
-- **Brand theme** in `src/styles.css` using the supplied palette as semantic tokens (oklch):
-  - primary red `#E22A2A`, accent amber `#F5961E`, secondary teal `#1C8A9E`, charcoal `#1E1F22`, silver `#C7CCD1`, off-white surface `#F7F8FA`.
-  - Rounded corners (lg = 14px), generous spacing, large tap targets (min 48px), large body text (16–18px base), high contrast.
-  - Light mode default; optional dark mode toggle wired but not pushed.
-- **Mobile-first layout shell** with a Facebook-style bottom nav (4 tabs: Home / Shifts / Earnings / Account). Tabs are stubbed in Phase 1 — only Home + Account are functional.
-- **Installable web app**: ship a `manifest.json` with app name, icons, theme color, `display: "standalone"`, and a maskable icon. **No service worker** in Phase 1 — see "PWA note" below.
+- **Profile** (`/profile`)
+- **Shift** (`/shift`)
+- **Fuel** (`/fuel`)
+- **Fees** (`/fees`)
 
-### PWA note (important)
-You asked for an installable PWA. A *manifest-only* install (Add to Home Screen, standalone display, splash screen, icon) works reliably and is what most "installable" apps actually need. A *full* PWA with offline support requires a service worker, which is known to cause stale-cache and preview issues inside Lovable's editor and can lock users to old builds. **Recommendation:** ship manifest-only now (fully installable on iOS/Android), and add offline support as a deliberate later phase once the app is stable. I'll proceed manifest-only unless you tell me otherwise.
+Delete `/`, `/shifts`, `/earnings`, `/account`. Index route redirects to `/shift` (the daily-use screen) when signed in, otherwise `/login`. Keep `/login`, `/forgot-password`, `/setup`.
 
----
+### 1. Profile tab (`/profile`)
 
-## 2. Database Schema (Supabase / Postgres)
+Read-only display of: Full name, Email, Phone, Motorcycle brand + model, Fuel tank size.
+Only editable item: **profile photo**, uploaded to Supabase Storage bucket `avatars` (public read, owner write).
+Adds `avatar_url` column to `profiles`. Tap photo → file picker → uploads to `avatars/{user_id}.jpg`, updates profile.
+Sign-out button at the bottom. Theme switcher moves here.
 
-All tables under `public`, all with RLS enabled, all GRANTed to `authenticated` + `service_role`.
+### 2. Shift tab (`/shift`) — the core flow
 
-| Table | Purpose | Key columns |
-|---|---|---|
-| `profiles` | One row per user, linked to `auth.users` | `id` (FK→auth.users), `full_name`, `phone`, `motorcycle_brand`, `motorcycle_model`, `fuel_tank_liters`, `first_sign_in_completed`, `created_at` |
-| `app_role` (enum) | `driver`, `admin`, `superadmin` | — |
-| `user_roles` | Roles kept in a separate table (security best-practice — never on profiles) | `user_id`, `role`, unique(user_id, role) |
-| `security_questions` | Catalog of pickable questions (seeded ~8 options in Filipino-friendly English) | `id`, `question_text`, `is_active` |
-| `user_security_answers` | A user's chosen Q+A pairs; **answers stored hashed (bcrypt via pgcrypto)**, never plain text | `user_id`, `question_id`, `answer_hash`, `created_at` |
-| `shifts` | A driver's work session | `id`, `driver_id`, `started_at`, `ended_at`, `starting_odometer_km`, `ending_odometer_km`, `notes` |
-| `trips` | Individual jobs within a shift | `id`, `shift_id`, `driver_id`, `service_type` (angkas/pabakal/padala), `gross_fare_php`, `distance_km`, `started_at`, `ended_at`, `notes` |
-| `fuel_logs` | Refuels | `id`, `driver_id`, `shift_id` (nullable), `liters`, `price_per_liter_php`, `total_cost_php`, `odometer_km`, `logged_at` |
-| `fee_categories` | Types of expenses (toll, parking, commission, etc.) — seeded | `id`, `name`, `is_active` |
-| `fee_entries` | Individual expense entries | `id`, `driver_id`, `shift_id` (nullable), `category_id`, `amount_php`, `note`, `logged_at` |
-| `app_settings` | Key/value config (default password, fuel-economy defaults, etc.) — admin-managed | `key`, `value` (jsonb), `updated_at` |
+**State A — no active shift:** big floating "Start Shift" button (full-width primary).
+**Start Shift screen** (`/shift/start`): single numeric input for starting odometer (km), large numeric keypad-friendly input, big "Start" button. Creates a `shifts` row with `started_at = now()` and `starting_odometer_km`.
 
-**Security-definer helper** `has_role(user_id, role)` to avoid recursive RLS, used in every policy.
+**State B — active shift in progress:** card showing started time + starting odo, two big buttons: **Add Trip** and **End Shift**, plus a compact running summary (trips count, distance so far, gross so far).
 
-**RLS summary:**
-- `profiles`, `shifts`, `trips`, `fuel_logs`, `fee_entries`, `user_security_answers`: driver can SELECT/INSERT/UPDATE/DELETE only `WHERE driver_id = auth.uid()` (or `user_id`); admin + superadmin can read all; superadmin can write all.
-- `security_questions`, `fee_categories`: any authenticated user can SELECT; only admin/superadmin can write.
-- `app_settings`: only superadmin reads/writes; the default-password value is read server-side via a server function, never exposed to clients.
-- `user_roles`: user can read their own roles; only superadmin can write.
+**Add Trip** (`/shift/trip`): one short form
+- Distance (km) — numeric
+- Base fare (₱) — numeric
+- Service type — three big tappable tiles: Angkas, Pabakal, Padala
+- Big "Save trip" button → inserts `trips` row tied to active shift.
 
-**Trigger:** on `auth.users` insert → auto-create matching `profiles` row + default `driver` role.
+**End Shift** (`/shift/end`): numeric input for ending odometer. Validate `ending >= starting`; if not, friendly inline error ("Ending reading must be at least your starting reading of X km"). Sets `ended_at` + `ending_odometer_km`. Then routes to **shift summary** showing:
+- Total distance (ending − starting km), with sub-line: "Sum of trip distances: Y km" and a warning chip if they differ by >10%
+- Number of trips
+- Gross earnings (₱)
+- Fuel cost (₱)
+- Net earnings (₱) — large, prominent
+- Fuel efficiency (km/L)
+Encouraging headline like "Magaling, {name}! 💪". Big "Done" button → back to `/shift`.
 
----
+**Persistence / single-active rule:** active shift = a `shifts` row for the current user with `ended_at IS NULL`. Loaded on tab mount so refresh/close resumes correctly. DB safeguard: partial unique index on `(driver_id) where ended_at is null`.
 
-## 3. Authentication & First-Sign-In Flow
+### 3. Fuel tab (`/fuel`)
 
-- **Sign-in page** (`/login`): single username/email field + password field, one big primary button. Friendly copy ("Welcome back, kabayan!"). No social logins this phase.
-- **Default password** "Welcome312" stored in `app_settings` (`default_driver_password`) — readable only by server functions, never bundled into client JS. New drivers seeded by admin start with this; on first sign-in the wizard forces a change.
-- **First-sign-in wizard** (`/setup`) — gated by `profiles.first_sign_in_completed = false`. One step per screen, each with one big primary button:
-  1. **Change password** — new password + confirm, with simple strength hint.
-  2. **Pick 3 security questions** — tappable list, then one screen per chosen question to type the answer. Answers hashed server-side (`crypt()` + `gen_salt('bf')` via pgcrypto) before insert.
-  3. **Bike details** — Fuel tank size (numeric keypad, liters) and Motorcycle brand + model (two short text fields).
-  - Final screen: "You're all set!" → marks `first_sign_in_completed = true`, routes to Home.
-- **Self-service password reset** (`/forgot-password`):
-  1. Enter username/email.
-  2. Server returns the user's chosen security questions (no PII leaked if user not found — generic message).
-  3. User answers each on its own screen; server verifies hashes.
-  4. On success, server function resets the user's password back to the default (`Welcome312`) and clears `first_sign_in_completed` so they're forced through the wizard again.
+Three sections, scoped to the active shift (or "no active shift" empty state with a button to start one):
 
-All sensitive operations (default-password read, password reset, hashed-answer verification) go through `createServerFn` with the admin Supabase client — the service-role key never reaches the browser.
+- **Gas rate** (₱/L) — single field, saved as `app_settings` per-user or on the shift; we'll store it on the shift row as `gas_rate_php_per_liter` (new column) so each shift has its own rate.
+- **Starting fuel cost** — single ₱ field at start of shift, stored as the first `fuel_logs` row marked as the start fill.
+- **Mid-shift refuels** — list of refuels with "Add refuel" button. Each refuel: ₱ amount (required) + liters (optional). If liters blank, computed = amount / gas_rate at display time.
 
----
+Shows running totals: total fuel ₱, total liters, current km/L (uses live odo from trips/distance so far).
 
-## 4. Seed Data
+### 4. Fees tab (`/fees`)
 
-- **Superadmin account** "Admin" — email `admin@trustedriders.ph`, password pulled from a configurable secret (`SUPERADMIN_DEFAULT_PASSWORD`), seeded via a one-shot server function on first boot if missing. Username, email, and password are all configurable, not hard-coded in client code.
-- **2 sample drivers** with the default password, pre-filled wizard data on one of them so you can see a "completed" profile.
-- **8 security questions**, **6 fee categories** (Toll, Parking, Commission, Food, Phone load, Other).
-- **Sample shifts / trips / fuel logs** for the completed driver, so Phase 2's earnings screen has data to display.
+Clear banner: **"Extra money you collected on top of the base fare — this is income, not expense."**
+Three sections:
 
----
+- Fee category picker — large tiles pulled from `fee_categories` where `is_active = true` (Tip, Tariff, Toll, Other, plus whatever admin added).
+- "Add fee" form: pick category tile → ₱ amount → optional note → save.
+- List of fees logged this shift, with delete (with confirm).
 
-## 5. What's NOT in this phase
+Fee categories are also categorized as income vs expense; we add an `entry_type` column (`'income' | 'expense'`, default `'income'`) to `fee_categories` so the math can split them. Seed defaults: Tip/Tariff/Toll/Other all income.
 
-To keep Phase 1 shippable and the spec honest:
-- Trip logging UI, fuel logging UI, earnings/reports screens — schema is ready, UI lands in Phase 2.
-- Offline support (service worker) — see PWA note.
-- Admin dashboard UI — superadmin can sign in but the admin tools come later.
-- Dark mode toggle UI (tokens defined, switch ships in a later phase).
+### 5. Calculations (shared util `src/lib/shift-math.ts`)
 
----
+```text
+shiftDistanceKm    = ending_odo − starting_odo            // primary
+tripDistanceSumKm  = sum(trips.distance_km)
+mismatch           = |shiftDistanceKm − tripDistanceSumKm| > 10% of shiftDistanceKm
 
-## Technical details (for the record)
+litersConsumed     = sum(fuel_logs.liters) if all rows have liters,
+                     else sum(fuel_logs.total_cost) / gas_rate
+fuelEfficiency     = shiftDistanceKm / litersConsumed     // km/L
 
-- React + TanStack Start, TanStack Router file-based routes, TanStack Query for reads.
-- Supabase clients: browser `client.ts` for auth/session, `auth-middleware` for user-scoped server fns, `client.server` for admin-only operations (password reset, default-password read, superadmin seed).
-- `createServerFn` for all sensitive flows; no Supabase Edge Functions.
-- `pgcrypto` extension enabled for bcrypt hashing of security answers.
-- One migration creates extensions, enum, all tables, GRANTs, RLS, policies, trigger, and seed data.
-- TypeScript strict; Zod validation on every server-fn input; all colors via semantic tokens.
+grossEarnings      = sum(trips.gross_fare) + sum(fee_entries where category.entry_type='income')
+totalExpenses      = sum(fuel_logs.total_cost) + sum(fee_entries where category.entry_type='expense')   // default 0
+netEarnings        = grossEarnings − totalExpenses
+```
 
----
+Money formatted via `Intl.NumberFormat('en-PH', { style:'currency', currency:'PHP' })` everywhere.
 
-**Two quick confirmations before I build:**
-1. **PWA scope** — OK to ship manifest-only (installable, no offline) now and add a service worker later? (Strongly recommended.)
-2. **Superadmin email** — OK to use `admin@trustedriders.ph` as the seeded address, with the password held in a `SUPERADMIN_DEFAULT_PASSWORD` secret you'll set after Cloud is enabled?
+### 6. Database migrations (one migration)
 
-Approve the plan and I'll start with Cloud + schema + theme in parallel.
+- `ALTER TABLE profiles ADD COLUMN avatar_url text`
+- `ALTER TABLE shifts ADD COLUMN gas_rate_php_per_liter numeric`
+- `ALTER TABLE fee_categories ADD COLUMN entry_type text NOT NULL DEFAULT 'income' CHECK (entry_type IN ('income','expense'))`
+- Seed: insert Tip, Tariff, Toll, Other into `fee_categories` if missing.
+- Partial unique index: `CREATE UNIQUE INDEX shifts_one_active_per_driver ON shifts(driver_id) WHERE ended_at IS NULL`
+- Create storage bucket `avatars` (public) + RLS policies: anyone can read, owner can insert/update/delete their own `{user_id}.*` path.
+
+### 7. Server functions (`src/lib/shift.functions.ts`, all `requireSupabaseAuth`)
+
+- `getActiveShift()` — returns active shift + trips + fuel_logs + fee_entries (and category metadata) for live screens.
+- `startShift({ starting_odometer_km, gas_rate, starting_fuel_cost })` — creates shift + first fuel log atomically.
+- `addTrip({ shift_id, service_type, distance_km, gross_fare_php })`
+- `addFuelLog({ shift_id, total_cost_php, liters? })`
+- `addFeeEntry({ shift_id, category_id, amount_php, note? })`
+- `deleteFeeEntry({ id })`
+- `endShift({ shift_id, ending_odometer_km })` — validates, sets ended_at, returns full summary DTO.
+- `uploadAvatar` handled client-side directly via the browser supabase client + Storage (RLS-scoped).
+- `listFeeCategories()` — public list of active categories.
+
+### 8. File changes summary
+
+New: `src/routes/profile.tsx`, `src/routes/shift.tsx`, `src/routes/shift.start.tsx`, `src/routes/shift.trip.tsx`, `src/routes/shift.end.tsx`, `src/routes/shift.summary.tsx`, `src/routes/fuel.tsx`, `src/routes/fees.tsx`, `src/lib/shift.functions.ts`, `src/lib/shift-math.ts`, `src/components/MoneyInput.tsx`, `src/components/Money.tsx`.
+Edit: `src/components/BottomNav.tsx` (new 4 tabs + icons), `src/routes/index.tsx` (auth-aware redirect).
+Delete: `src/routes/shifts.tsx`, `src/routes/earnings.tsx`, `src/routes/account.tsx`.
+Migration: one SQL migration covering everything in §6.
+
+### Open questions
+None blocking — proceeding with the choices above when you approve.

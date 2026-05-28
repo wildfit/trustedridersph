@@ -9,17 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ShiftsRouteImport } from './routes/shifts'
+import { Route as ShiftRouteImport } from './routes/shift'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FuelRouteImport } from './routes/fuel'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as EarningsRouteImport } from './routes/earnings'
-import { Route as AccountRouteImport } from './routes/account'
+import { Route as FeesRouteImport } from './routes/fees'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShiftTripRouteImport } from './routes/shift.trip'
+import { Route as ShiftSummaryRouteImport } from './routes/shift.summary'
+import { Route as ShiftStartRouteImport } from './routes/shift.start'
+import { Route as ShiftEndRouteImport } from './routes/shift.end'
 
-const ShiftsRoute = ShiftsRouteImport.update({
-  id: '/shifts',
-  path: '/shifts',
+const ShiftRoute = ShiftRouteImport.update({
+  id: '/shift',
+  path: '/shift',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SetupRoute = SetupRouteImport.update({
@@ -27,9 +32,19 @@ const SetupRoute = SetupRouteImport.update({
   path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FuelRoute = FuelRouteImport.update({
+  id: '/fuel',
+  path: '/fuel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -37,14 +52,9 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EarningsRoute = EarningsRouteImport.update({
-  id: '/earnings',
-  path: '/earnings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountRoute = AccountRouteImport.update({
-  id: '/account',
-  path: '/account',
+const FeesRoute = FeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -52,82 +62,133 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShiftTripRoute = ShiftTripRouteImport.update({
+  id: '/trip',
+  path: '/trip',
+  getParentRoute: () => ShiftRoute,
+} as any)
+const ShiftSummaryRoute = ShiftSummaryRouteImport.update({
+  id: '/summary',
+  path: '/summary',
+  getParentRoute: () => ShiftRoute,
+} as any)
+const ShiftStartRoute = ShiftStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => ShiftRoute,
+} as any)
+const ShiftEndRoute = ShiftEndRouteImport.update({
+  id: '/end',
+  path: '/end',
+  getParentRoute: () => ShiftRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
-  '/earnings': typeof EarningsRoute
+  '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/fuel': typeof FuelRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
-  '/shifts': typeof ShiftsRoute
+  '/shift': typeof ShiftRouteWithChildren
+  '/shift/end': typeof ShiftEndRoute
+  '/shift/start': typeof ShiftStartRoute
+  '/shift/summary': typeof ShiftSummaryRoute
+  '/shift/trip': typeof ShiftTripRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
-  '/earnings': typeof EarningsRoute
+  '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/fuel': typeof FuelRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
-  '/shifts': typeof ShiftsRoute
+  '/shift': typeof ShiftRouteWithChildren
+  '/shift/end': typeof ShiftEndRoute
+  '/shift/start': typeof ShiftStartRoute
+  '/shift/summary': typeof ShiftSummaryRoute
+  '/shift/trip': typeof ShiftTripRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/account': typeof AccountRoute
-  '/earnings': typeof EarningsRoute
+  '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/fuel': typeof FuelRoute
   '/login': typeof LoginRoute
+  '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
-  '/shifts': typeof ShiftsRoute
+  '/shift': typeof ShiftRouteWithChildren
+  '/shift/end': typeof ShiftEndRoute
+  '/shift/start': typeof ShiftStartRoute
+  '/shift/summary': typeof ShiftSummaryRoute
+  '/shift/trip': typeof ShiftTripRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/account'
-    | '/earnings'
+    | '/fees'
     | '/forgot-password'
+    | '/fuel'
     | '/login'
+    | '/profile'
     | '/setup'
-    | '/shifts'
+    | '/shift'
+    | '/shift/end'
+    | '/shift/start'
+    | '/shift/summary'
+    | '/shift/trip'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/account'
-    | '/earnings'
+    | '/fees'
     | '/forgot-password'
+    | '/fuel'
     | '/login'
+    | '/profile'
     | '/setup'
-    | '/shifts'
+    | '/shift'
+    | '/shift/end'
+    | '/shift/start'
+    | '/shift/summary'
+    | '/shift/trip'
   id:
     | '__root__'
     | '/'
-    | '/account'
-    | '/earnings'
+    | '/fees'
     | '/forgot-password'
+    | '/fuel'
     | '/login'
+    | '/profile'
     | '/setup'
-    | '/shifts'
+    | '/shift'
+    | '/shift/end'
+    | '/shift/start'
+    | '/shift/summary'
+    | '/shift/trip'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AccountRoute: typeof AccountRoute
-  EarningsRoute: typeof EarningsRoute
+  FeesRoute: typeof FeesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  FuelRoute: typeof FuelRoute
   LoginRoute: typeof LoginRoute
+  ProfileRoute: typeof ProfileRoute
   SetupRoute: typeof SetupRoute
-  ShiftsRoute: typeof ShiftsRoute
+  ShiftRoute: typeof ShiftRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/shifts': {
-      id: '/shifts'
-      path: '/shifts'
-      fullPath: '/shifts'
-      preLoaderRoute: typeof ShiftsRouteImport
+    '/shift': {
+      id: '/shift'
+      path: '/shift'
+      fullPath: '/shift'
+      preLoaderRoute: typeof ShiftRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/setup': {
@@ -137,11 +198,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fuel': {
+      id: '/fuel'
+      path: '/fuel'
+      fullPath: '/fuel'
+      preLoaderRoute: typeof FuelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -151,18 +226,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/earnings': {
-      id: '/earnings'
-      path: '/earnings'
-      fullPath: '/earnings'
-      preLoaderRoute: typeof EarningsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/account': {
-      id: '/account'
-      path: '/account'
-      fullPath: '/account'
-      preLoaderRoute: typeof AccountRouteImport
+    '/fees': {
+      id: '/fees'
+      path: '/fees'
+      fullPath: '/fees'
+      preLoaderRoute: typeof FeesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -172,17 +240,62 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shift/trip': {
+      id: '/shift/trip'
+      path: '/trip'
+      fullPath: '/shift/trip'
+      preLoaderRoute: typeof ShiftTripRouteImport
+      parentRoute: typeof ShiftRoute
+    }
+    '/shift/summary': {
+      id: '/shift/summary'
+      path: '/summary'
+      fullPath: '/shift/summary'
+      preLoaderRoute: typeof ShiftSummaryRouteImport
+      parentRoute: typeof ShiftRoute
+    }
+    '/shift/start': {
+      id: '/shift/start'
+      path: '/start'
+      fullPath: '/shift/start'
+      preLoaderRoute: typeof ShiftStartRouteImport
+      parentRoute: typeof ShiftRoute
+    }
+    '/shift/end': {
+      id: '/shift/end'
+      path: '/end'
+      fullPath: '/shift/end'
+      preLoaderRoute: typeof ShiftEndRouteImport
+      parentRoute: typeof ShiftRoute
+    }
   }
 }
 
+interface ShiftRouteChildren {
+  ShiftEndRoute: typeof ShiftEndRoute
+  ShiftStartRoute: typeof ShiftStartRoute
+  ShiftSummaryRoute: typeof ShiftSummaryRoute
+  ShiftTripRoute: typeof ShiftTripRoute
+}
+
+const ShiftRouteChildren: ShiftRouteChildren = {
+  ShiftEndRoute: ShiftEndRoute,
+  ShiftStartRoute: ShiftStartRoute,
+  ShiftSummaryRoute: ShiftSummaryRoute,
+  ShiftTripRoute: ShiftTripRoute,
+}
+
+const ShiftRouteWithChildren = ShiftRoute._addFileChildren(ShiftRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AccountRoute: AccountRoute,
-  EarningsRoute: EarningsRoute,
+  FeesRoute: FeesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  FuelRoute: FuelRoute,
   LoginRoute: LoginRoute,
+  ProfileRoute: ProfileRoute,
   SetupRoute: SetupRoute,
-  ShiftsRoute: ShiftsRoute,
+  ShiftRoute: ShiftRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

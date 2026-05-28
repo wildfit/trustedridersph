@@ -35,18 +35,21 @@ export type Database = {
       fee_categories: {
         Row: {
           created_at: string
+          entry_type: string
           id: string
           is_active: boolean
           name: string
         }
         Insert: {
           created_at?: string
+          entry_type?: string
           id?: string
           is_active?: boolean
           name: string
         }
         Update: {
           created_at?: string
+          entry_type?: string
           id?: string
           is_active?: boolean
           name?: string
@@ -147,6 +150,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string
           first_sign_in_completed: boolean
           fuel_tank_liters: number | null
@@ -158,6 +162,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           first_sign_in_completed?: boolean
           fuel_tank_liters?: number | null
@@ -169,6 +174,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           first_sign_in_completed?: boolean
           fuel_tank_liters?: number | null
@@ -208,6 +214,7 @@ export type Database = {
           driver_id: string
           ended_at: string | null
           ending_odometer_km: number | null
+          gas_rate_php_per_liter: number | null
           id: string
           notes: string | null
           started_at: string
@@ -219,6 +226,7 @@ export type Database = {
           driver_id: string
           ended_at?: string | null
           ending_odometer_km?: number | null
+          gas_rate_php_per_liter?: number | null
           id?: string
           notes?: string | null
           started_at?: string
@@ -230,6 +238,7 @@ export type Database = {
           driver_id?: string
           ended_at?: string | null
           ending_odometer_km?: number | null
+          gas_rate_php_per_liter?: number | null
           id?: string
           notes?: string | null
           started_at?: string
