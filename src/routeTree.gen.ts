@@ -16,11 +16,18 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as FuelRouteImport } from './routes/fuel'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FeesRouteImport } from './routes/fees'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShiftTripRouteImport } from './routes/shift.trip'
 import { Route as ShiftSummaryRouteImport } from './routes/shift.summary'
 import { Route as ShiftStartRouteImport } from './routes/shift.start'
 import { Route as ShiftEndRouteImport } from './routes/shift.end'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminRecordsRouteImport } from './routes/admin.records'
+import { Route as AdminFeesRouteImport } from './routes/admin.fees'
+import { Route as AdminExportRouteImport } from './routes/admin.export'
+import { Route as AdminDriversRouteImport } from './routes/admin.drivers'
+import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 
 const ShiftRoute = ShiftRouteImport.update({
   id: '/shift',
@@ -57,6 +64,11 @@ const FeesRoute = FeesRouteImport.update({
   path: '/fees',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -82,9 +94,40 @@ const ShiftEndRoute = ShiftEndRouteImport.update({
   path: '/end',
   getParentRoute: () => ShiftRoute,
 } as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRecordsRoute = AdminRecordsRouteImport.update({
+  id: '/records',
+  path: '/records',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFeesRoute = AdminFeesRouteImport.update({
+  id: '/fees',
+  path: '/fees',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminExportRoute = AdminExportRouteImport.update({
+  id: '/export',
+  path: '/export',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDriversRoute = AdminDriversRouteImport.update({
+  id: '/drivers',
+  path: '/drivers',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDashboardRoute = AdminDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
@@ -92,6 +135,12 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
   '/shift': typeof ShiftRouteWithChildren
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/drivers': typeof AdminDriversRoute
+  '/admin/export': typeof AdminExportRoute
+  '/admin/fees': typeof AdminFeesRoute
+  '/admin/records': typeof AdminRecordsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/shift/end': typeof ShiftEndRoute
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
@@ -99,6 +148,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
@@ -106,6 +156,12 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
   '/shift': typeof ShiftRouteWithChildren
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/drivers': typeof AdminDriversRoute
+  '/admin/export': typeof AdminExportRoute
+  '/admin/fees': typeof AdminFeesRoute
+  '/admin/records': typeof AdminRecordsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/shift/end': typeof ShiftEndRoute
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
@@ -114,6 +170,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
@@ -121,6 +178,12 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/setup': typeof SetupRoute
   '/shift': typeof ShiftRouteWithChildren
+  '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/drivers': typeof AdminDriversRoute
+  '/admin/export': typeof AdminExportRoute
+  '/admin/fees': typeof AdminFeesRoute
+  '/admin/records': typeof AdminRecordsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/shift/end': typeof ShiftEndRoute
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
@@ -130,6 +193,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/fees'
     | '/forgot-password'
     | '/fuel'
@@ -137,6 +201,12 @@ export interface FileRouteTypes {
     | '/profile'
     | '/setup'
     | '/shift'
+    | '/admin/dashboard'
+    | '/admin/drivers'
+    | '/admin/export'
+    | '/admin/fees'
+    | '/admin/records'
+    | '/admin/settings'
     | '/shift/end'
     | '/shift/start'
     | '/shift/summary'
@@ -144,6 +214,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/admin'
     | '/fees'
     | '/forgot-password'
     | '/fuel'
@@ -151,6 +222,12 @@ export interface FileRouteTypes {
     | '/profile'
     | '/setup'
     | '/shift'
+    | '/admin/dashboard'
+    | '/admin/drivers'
+    | '/admin/export'
+    | '/admin/fees'
+    | '/admin/records'
+    | '/admin/settings'
     | '/shift/end'
     | '/shift/start'
     | '/shift/summary'
@@ -158,6 +235,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/fees'
     | '/forgot-password'
     | '/fuel'
@@ -165,6 +243,12 @@ export interface FileRouteTypes {
     | '/profile'
     | '/setup'
     | '/shift'
+    | '/admin/dashboard'
+    | '/admin/drivers'
+    | '/admin/export'
+    | '/admin/fees'
+    | '/admin/records'
+    | '/admin/settings'
     | '/shift/end'
     | '/shift/start'
     | '/shift/summary'
@@ -173,6 +257,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   FeesRoute: typeof FeesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   FuelRoute: typeof FuelRoute
@@ -233,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -268,8 +360,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShiftEndRouteImport
       parentRoute: typeof ShiftRoute
     }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/records': {
+      id: '/admin/records'
+      path: '/records'
+      fullPath: '/admin/records'
+      preLoaderRoute: typeof AdminRecordsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/fees': {
+      id: '/admin/fees'
+      path: '/fees'
+      fullPath: '/admin/fees'
+      preLoaderRoute: typeof AdminFeesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/export': {
+      id: '/admin/export'
+      path: '/export'
+      fullPath: '/admin/export'
+      preLoaderRoute: typeof AdminExportRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/drivers': {
+      id: '/admin/drivers'
+      path: '/drivers'
+      fullPath: '/admin/drivers'
+      preLoaderRoute: typeof AdminDriversRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/dashboard': {
+      id: '/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AdminDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
+
+interface AdminRouteChildren {
+  AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDriversRoute: typeof AdminDriversRoute
+  AdminExportRoute: typeof AdminExportRoute
+  AdminFeesRoute: typeof AdminFeesRoute
+  AdminRecordsRoute: typeof AdminRecordsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminDashboardRoute: AdminDashboardRoute,
+  AdminDriversRoute: AdminDriversRoute,
+  AdminExportRoute: AdminExportRoute,
+  AdminFeesRoute: AdminFeesRoute,
+  AdminRecordsRoute: AdminRecordsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface ShiftRouteChildren {
   ShiftEndRoute: typeof ShiftEndRoute
@@ -289,6 +443,7 @@ const ShiftRouteWithChildren = ShiftRoute._addFileChildren(ShiftRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   FeesRoute: FeesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   FuelRoute: FuelRoute,

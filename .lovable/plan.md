@@ -1,115 +1,124 @@
-## Phase 2 Plan — Driver UI
+# Phase 3 — Admin & Superadmin UI
 
-Builds the working driver app on top of Phase 1 (auth, profile, roles, brand). UX rule stays: one big primary action per screen, big tap targets, large text, plain language, numeric keypads, confirmations on destructive actions.
+A responsive desktop-first admin area gated to `admin` and `superadmin` roles, plus PWA install support, RLS verification, and a handoff summary.
 
-### Navigation change
+## 1. Routing & layout
 
-Replace the current 4-tab bottom nav (Home / Shifts / Earnings / Account) with the spec'd 4 tabs:
+New pathless layout `src/routes/_admin.tsx`:
+- `beforeLoad` calls `requireAdminAccess` server fn → redirects non-admins to `/shift`.
+- Renders a responsive shell: top header (logo, user menu, sign out) + left sidebar nav (Dashboard, Drivers, Records, Fee Categories, Settings, Export). Sidebar collapses to a drawer below `md`.
+- Hides the driver `BottomNav` (already conditional on auth route; will scope it to non-admin routes).
 
-- **Profile** (`/profile`)
-- **Shift** (`/shift`)
-- **Fuel** (`/fuel`)
-- **Fees** (`/fees`)
+Routes:
+- `/_admin/dashboard` — KPI cards + bar + line charts (Recharts).
+- `/_admin/drivers` — driver table + per-row actions (enable/disable, access mode, reset password).
+- `/_admin/records` — shift records table with filters; row → edit modal.
+- `/_admin/fees` — fee category CRUD table with income/expense toggle.
+- `/_admin/settings` — `app_settings` key/value editor (gas default rate, default password, etc.).
+- `/_admin/export` — date range + CSV/XLSX download buttons.
 
-Delete `/`, `/shifts`, `/earnings`, `/account`. Index route redirects to `/shift` (the daily-use screen) when signed in, otherwise `/login`. Keep `/login`, `/forgot-password`, `/setup`.
+Index route: if user is admin/superadmin, redirect `/` to `/dashboard`.
 
-### 1. Profile tab (`/profile`)
+## 2. Database migration
 
-Read-only display of: Full name, Email, Phone, Motorcycle brand + model, Fuel tank size.
-Only editable item: **profile photo**, uploaded to Supabase Storage bucket `avatars` (public read, owner write).
-Adds `avatar_url` column to `profiles`. Tap photo → file picker → uploads to `avatars/{user_id}.jpg`, updates profile.
-Sign-out button at the bottom. Theme switcher moves here.
+```sql
+-- Driver account access window + enabled flag
+ALTER TABLE public.profiles
+  ADD COLUMN is_enabled boolean NOT NULL DEFAULT true,
+  ADD COLUMN access_mode text NOT NULL DEFAULT 'indefinite'
+    CHECK (access_mode IN ('indefinite','duration')),
+  ADD COLUMN access_starts_at timestamptz,
+  ADD COLUMN access_ends_at timestamptz;
 
-### 2. Shift tab (`/shift`) — the core flow
+-- Audit trail for admin edits
+CREATE TABLE public.audit_log (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  actor_id uuid NOT NULL,
+  entity_type text NOT NULL,   -- 'shift' | 'trip' | 'fuel_log' | 'fee_entry' | 'profile' | 'fee_category'
+  entity_id uuid NOT NULL,
+  action text NOT NULL,        -- 'update' | 'delete' | 'enable' | 'disable' | 'reset_password'
+  before jsonb,
+  after jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT ON public.audit_log TO authenticated;
+GRANT ALL ON public.audit_log TO service_role;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY audit_select ON public.audit_log FOR SELECT TO authenticated
+  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'superadmin'));
+CREATE POLICY audit_insert ON public.audit_log FOR INSERT TO authenticated
+  WITH CHECK (actor_id = auth.uid());
 
-**State A — no active shift:** big floating "Start Shift" button (full-width primary).
-**Start Shift screen** (`/shift/start`): single numeric input for starting odometer (km), large numeric keypad-friendly input, big "Start" button. Creates a `shifts` row with `started_at = now()` and `starting_odometer_km`.
+-- Allow admins/superadmin to manage fee_categories
+CREATE POLICY fee_cat_admin_write ON public.fee_categories
+  FOR ALL TO authenticated
+  USING (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'superadmin'))
+  WITH CHECK (has_role(auth.uid(),'admin') OR has_role(auth.uid(),'superadmin'));
 
-**State B — active shift in progress:** card showing started time + starting odo, two big buttons: **Add Trip** and **End Shift**, plus a compact running summary (trips count, distance so far, gross so far).
-
-**Add Trip** (`/shift/trip`): one short form
-- Distance (km) — numeric
-- Base fare (₱) — numeric
-- Service type — three big tappable tiles: Angkas, Pabakal, Padala
-- Big "Save trip" button → inserts `trips` row tied to active shift.
-
-**End Shift** (`/shift/end`): numeric input for ending odometer. Validate `ending >= starting`; if not, friendly inline error ("Ending reading must be at least your starting reading of X km"). Sets `ended_at` + `ending_odometer_km`. Then routes to **shift summary** showing:
-- Total distance (ending − starting km), with sub-line: "Sum of trip distances: Y km" and a warning chip if they differ by >10%
-- Number of trips
-- Gross earnings (₱)
-- Fuel cost (₱)
-- Net earnings (₱) — large, prominent
-- Fuel efficiency (km/L)
-Encouraging headline like "Magaling, {name}! 💪". Big "Done" button → back to `/shift`.
-
-**Persistence / single-active rule:** active shift = a `shifts` row for the current user with `ended_at IS NULL`. Loaded on tab mount so refresh/close resumes correctly. DB safeguard: partial unique index on `(driver_id) where ended_at is null`.
-
-### 3. Fuel tab (`/fuel`)
-
-Three sections, scoped to the active shift (or "no active shift" empty state with a button to start one):
-
-- **Gas rate** (₱/L) — single field, saved as `app_settings` per-user or on the shift; we'll store it on the shift row as `gas_rate_php_per_liter` (new column) so each shift has its own rate.
-- **Starting fuel cost** — single ₱ field at start of shift, stored as the first `fuel_logs` row marked as the start fill.
-- **Mid-shift refuels** — list of refuels with "Add refuel" button. Each refuel: ₱ amount (required) + liters (optional). If liters blank, computed = amount / gas_rate at display time.
-
-Shows running totals: total fuel ₱, total liters, current km/L (uses live odo from trips/distance so far).
-
-### 4. Fees tab (`/fees`)
-
-Clear banner: **"Extra money you collected on top of the base fare — this is income, not expense."**
-Three sections:
-
-- Fee category picker — large tiles pulled from `fee_categories` where `is_active = true` (Tip, Tariff, Toll, Other, plus whatever admin added).
-- "Add fee" form: pick category tile → ₱ amount → optional note → save.
-- List of fees logged this shift, with delete (with confirm).
-
-Fee categories are also categorized as income vs expense; we add an `entry_type` column (`'income' | 'expense'`, default `'income'`) to `fee_categories` so the math can split them. Seed defaults: Tip/Tariff/Toll/Other all income.
-
-### 5. Calculations (shared util `src/lib/shift-math.ts`)
-
-```text
-shiftDistanceKm    = ending_odo − starting_odo            // primary
-tripDistanceSumKm  = sum(trips.distance_km)
-mismatch           = |shiftDistanceKm − tripDistanceSumKm| > 10% of shiftDistanceKm
-
-litersConsumed     = sum(fuel_logs.liters) if all rows have liters,
-                     else sum(fuel_logs.total_cost) / gas_rate
-fuelEfficiency     = shiftDistanceKm / litersConsumed     // km/L
-
-grossEarnings      = sum(trips.gross_fare) + sum(fee_entries where category.entry_type='income')
-totalExpenses      = sum(fuel_logs.total_cost) + sum(fee_entries where category.entry_type='expense')   // default 0
-netEarnings        = grossEarnings − totalExpenses
+-- Admins can update/delete shifts, trips, fuel_logs, fee_entries
+-- (existing policies already cover superadmin; add admin)
+CREATE POLICY shifts_admin_update ON public.shifts FOR UPDATE TO authenticated
+  USING (has_role(auth.uid(),'admin'));
+CREATE POLICY trips_admin_update ON public.trips FOR UPDATE TO authenticated
+  USING (has_role(auth.uid(),'admin'));
+CREATE POLICY fuel_admin_update ON public.fuel_logs FOR UPDATE TO authenticated
+  USING (has_role(auth.uid(),'admin'));
+CREATE POLICY fee_entries_admin_update ON public.fee_entries FOR UPDATE TO authenticated
+  USING (has_role(auth.uid(),'admin'));
 ```
 
-Money formatted via `Intl.NumberFormat('en-PH', { style:'currency', currency:'PHP' })` everywhere.
+Plus a `is_admin_or_super(uid)` helper if useful.
 
-### 6. Database migrations (one migration)
+## 3. Server functions (`src/lib/admin.functions.ts`)
 
-- `ALTER TABLE profiles ADD COLUMN avatar_url text`
-- `ALTER TABLE shifts ADD COLUMN gas_rate_php_per_liter numeric`
-- `ALTER TABLE fee_categories ADD COLUMN entry_type text NOT NULL DEFAULT 'income' CHECK (entry_type IN ('income','expense'))`
-- Seed: insert Tip, Tariff, Toll, Other into `fee_categories` if missing.
-- Partial unique index: `CREATE UNIQUE INDEX shifts_one_active_per_driver ON shifts(driver_id) WHERE ended_at IS NULL`
-- Create storage bucket `avatars` (public) + RLS policies: anyone can read, owner can insert/update/delete their own `{user_id}.*` path.
+All gated by `requireSupabaseAuth` + an internal `assertAdmin(context)` helper that throws unless `has_role admin|superadmin`. Audit log written via `supabaseAdmin` after each mutation.
 
-### 7. Server functions (`src/lib/shift.functions.ts`, all `requireSupabaseAuth`)
+- `listDrivers`, `setDriverEnabled`, `setDriverAccessWindow`, `resetDriverPassword` (uses `supabaseAdmin.auth.admin.updateUserById` with `SUPERADMIN_DEFAULT_PASSWORD` env).
+- `listFeeCategories`, `createFeeCategory`, `updateFeeCategory`, `deleteFeeCategory`.
+- `listAppSettings`, `upsertAppSetting`.
+- `listShiftRecords({from,to,driverId})`, `getShiftDetail(shiftId)`, `updateShift`, `updateTrip`, `updateFuelLog`, `updateFeeEntry`, `deleteRecord`.
+- `getDashboardSummary({granularity})` returns daily/weekly/monthly aggregates.
+- `exportRecords({from,to,format})` returns rows; CSV/XLSX built client-side via `papaparse` + `xlsx` (bun add).
 
-- `getActiveShift()` — returns active shift + trips + fuel_logs + fee_entries (and category metadata) for live screens.
-- `startShift({ starting_odometer_km, gas_rate, starting_fuel_cost })` — creates shift + first fuel log atomically.
-- `addTrip({ shift_id, service_type, distance_km, gross_fare_php })`
-- `addFuelLog({ shift_id, total_cost_php, liters? })`
-- `addFeeEntry({ shift_id, category_id, amount_php, note? })`
-- `deleteFeeEntry({ id })`
-- `endShift({ shift_id, ending_odometer_km })` — validates, sets ended_at, returns full summary DTO.
-- `uploadAvatar` handled client-side directly via the browser supabase client + Storage (RLS-scoped).
-- `listFeeCategories()` — public list of active categories.
+## 4. UI components
 
-### 8. File changes summary
+- `src/components/admin/AdminShell.tsx` — sidebar + header.
+- `src/components/admin/DataTable.tsx` — light wrapper around shadcn Table with sort/pagination.
+- Per-page CRUD modals using shadcn `Dialog` + `react-hook-form` + `zod`.
+- Charts via `recharts` (already in shadcn template set; install if missing).
+- Audit panel on shift detail modal listing recent edits.
 
-New: `src/routes/profile.tsx`, `src/routes/shift.tsx`, `src/routes/shift.start.tsx`, `src/routes/shift.trip.tsx`, `src/routes/shift.end.tsx`, `src/routes/shift.summary.tsx`, `src/routes/fuel.tsx`, `src/routes/fees.tsx`, `src/lib/shift.functions.ts`, `src/lib/shift-math.ts`, `src/components/MoneyInput.tsx`, `src/components/Money.tsx`.
-Edit: `src/components/BottomNav.tsx` (new 4 tabs + icons), `src/routes/index.tsx` (auth-aware redirect).
-Delete: `src/routes/shifts.tsx`, `src/routes/earnings.tsx`, `src/routes/account.tsx`.
-Migration: one SQL migration covering everything in §6.
+## 5. PWA
 
-### Open questions
-None blocking — proceeding with the choices above when you approve.
+- Add `public/manifest.webmanifest` with name, short_name, icons (use existing brand logo), `display: standalone`, `start_url: /`, theme colors from palette.
+- Add `<link rel="manifest">` and theme-color meta in `__root.tsx` head().
+- No service worker (per guidance — manifest-only install support, works in published site).
+
+## 6. RLS verification
+
+After migration, run `supabase--linter` and a manual review:
+- Drivers: every `*_select/insert/update/delete` policy scoped to `driver_id = auth.uid()` ✓ (already in schema).
+- Admins: new admin-update policies added.
+- Superadmin: existing policies cover all tables.
+- `audit_log`: admins read-only; inserts must be `actor_id = auth.uid()`.
+
+## 7. Handoff summary
+Output a `HANDOFF.md` at repo root listing: schema tables, roles, key server fns, remaining stubs (e.g. SMS/email notifications, deeper analytics, mobile-app packaging), and any TODOs.
+
+## Files to create
+- `supabase/migrations/<ts>_admin_phase3.sql`
+- `src/lib/admin.functions.ts`, `src/lib/admin-guard.ts`, `src/lib/export.ts`
+- `src/routes/_admin.tsx`, `_admin.dashboard.tsx`, `_admin.drivers.tsx`, `_admin.records.tsx`, `_admin.fees.tsx`, `_admin.settings.tsx`, `_admin.export.tsx`
+- `src/components/admin/AdminShell.tsx`, `DataTable.tsx`, modal components per page
+- `public/manifest.webmanifest`, icons
+- `HANDOFF.md`
+
+## Files to edit
+- `src/routes/__root.tsx` — manifest + theme-color
+- `src/routes/index.tsx` — redirect admins to `/dashboard`
+- `src/components/BottomNav.tsx` — hide on admin routes
+
+## Packages to add
+`recharts`, `papaparse`, `@types/papaparse`, `xlsx`, `react-hook-form`, `@hookform/resolvers`, `date-fns` (if not already).
+
+Approve to proceed and I'll build it in one pass.

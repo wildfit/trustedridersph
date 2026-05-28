@@ -1,16 +1,15 @@
 {
-  "name": "Trusted Riders",
+  "name": "Trusted Riders — Driver Log",
   "short_name": "Trusted Riders",
-  "description": "Driver log for Angkas, Pabakal, and Padala — see how much you really earn.",
+  "description": "Track your trips, fuel, and real earnings as a motorcycle rider.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F7F8FA",
+  "background_color": "#ffffff",
   "theme_color": "#E22A2A",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ],
   "categories": ["productivity", "business"]
 }
