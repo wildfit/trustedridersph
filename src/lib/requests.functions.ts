@@ -159,7 +159,8 @@ export const resolveRequest = createServerFn({ method: "POST" })
         }
         if (Object.keys(allowed).length) {
           const { error: uErr } = await supabaseAdmin
-            .from("profiles").update(allowed).eq("id", req.driver_id);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .from("profiles").update(allowed as any).eq("id", req.driver_id);
           if (uErr) throw new Error(uErr.message);
         }
       }
