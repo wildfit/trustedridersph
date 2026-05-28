@@ -8,7 +8,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 
-export const Route = createFileRoute("/_admin/dashboard")({ component: Dashboard });
+export const Route = createFileRoute("/admin/dashboard")({ component: Dashboard });
 
 function Dashboard() {
   const [days, setDays] = useState(30);

@@ -10,7 +10,7 @@ import {
 } from "@/lib/admin.functions";
 import { Power, KeyRound, CalendarClock } from "lucide-react";
 
-export const Route = createFileRoute("/_admin/drivers")({ component: Drivers });
+export const Route = createFileRoute("/admin/drivers")({ component: Drivers });
 
 type Driver = Awaited<ReturnType<typeof listDrivers>>[number];
 

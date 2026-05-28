@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { listAppSettings, upsertAppSetting } from "@/lib/admin.functions";
 
-export const Route = createFileRoute("/_admin/settings")({ component: SettingsPage });
+export const Route = createFileRoute("/admin/settings")({ component: SettingsPage });
 
 const KNOWN: { key: string; label: string; help: string }[] = [
   { key: "default_driver_password", label: "Default driver password", help: "Used when resetting a driver's password or seeding new drivers." },

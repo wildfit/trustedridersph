@@ -7,7 +7,7 @@ import {
 } from "@/lib/admin.functions";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
-export const Route = createFileRoute("/_admin/fees")({ component: FeesAdmin });
+export const Route = createFileRoute("/admin/fees")({ component: FeesAdmin });
 
 type Cat = Awaited<ReturnType<typeof listFeeCategoriesAdmin>>[number];
 

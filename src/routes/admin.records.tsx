@@ -8,7 +8,7 @@ import {
 import { php, km } from "@/lib/format";
 import { Pencil, Trash2, X } from "lucide-react";
 
-export const Route = createFileRoute("/_admin/records")({ component: Records });
+export const Route = createFileRoute("/admin/records")({ component: Records });
 
 function Records() {
   const [from, setFrom] = useState("");

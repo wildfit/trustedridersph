@@ -6,7 +6,7 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { Download } from "lucide-react";
 
-export const Route = createFileRoute("/_admin/export")({ component: ExportPage });
+export const Route = createFileRoute("/admin/export")({ component: ExportPage });
 
 function ExportPage() {
   const [from, setFrom] = useState("");

@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-export const Route = createFileRoute("/_admin")({ component: AdminLayout });
+export const Route = createFileRoute("/admin")({ component: AdminLayout });
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
