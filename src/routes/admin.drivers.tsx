@@ -82,7 +82,7 @@ function Drivers() {
                       className="btn-sm"
                       onClick={() => {
                         if (confirm(`Reset password for ${d.email}?`))
-                          resetMut.mutate({ data: { driverId: d.id } });
+                          resetMut.mutate({ driverId: d.id });
                       }}
                     >
                       <KeyRound className="size-3.5" /> Reset PW
