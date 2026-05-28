@@ -68,7 +68,7 @@ function Row({ settingKey, label, help, initial, onSave }: { settingKey: string;
         <div className="text-xs text-muted-foreground">{help || settingKey}</div>
       </div>
       <input className="px-2 py-1.5 border border-border rounded bg-background w-full sm:w-64" value={v} onChange={(e) => setV(e.target.value)} />
-      <button className="btn-primary" disabled={!dirty} onClick={() => onSave(v)}>Save</button>
+      <button className="inline-flex items-center justify-center h-9 px-4 rounded-md text-sm font-semibold bg-primary text-primary-foreground disabled:opacity-50 disabled:pointer-events-none shrink-0" disabled={!dirty} onClick={() => onSave(v)}>Save</button>
     </div>
   );
 }
