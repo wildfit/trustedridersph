@@ -75,24 +75,24 @@ const ShiftIndexRoute = ShiftIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftTripRoute = ShiftTripRouteImport.update({
-  id: '/trip',
-  path: '/trip',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/trip',
+  path: '/shift/trip',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftSummaryRoute = ShiftSummaryRouteImport.update({
-  id: '/summary',
-  path: '/summary',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/summary',
+  path: '/shift/summary',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftStartRoute = ShiftStartRouteImport.update({
-  id: '/start',
-  path: '/start',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/start',
+  path: '/shift/start',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ShiftEndRoute = ShiftEndRouteImport.update({
-  id: '/end',
-  path: '/end',
-  getParentRoute: () => ShiftRoute,
+  id: '/shift/end',
+  path: '/shift/end',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
@@ -264,6 +264,10 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   SetupRoute: typeof SetupRoute
+  ShiftEndRoute: typeof ShiftEndRoute
+  ShiftStartRoute: typeof ShiftStartRoute
+  ShiftSummaryRoute: typeof ShiftSummaryRoute
+  ShiftTripRoute: typeof ShiftTripRoute
   ShiftIndexRoute: typeof ShiftIndexRoute
 }
 
@@ -334,31 +338,31 @@ declare module '@tanstack/react-router' {
     }
     '/shift/trip': {
       id: '/shift/trip'
-      path: '/trip'
+      path: '/shift/trip'
       fullPath: '/shift/trip'
       preLoaderRoute: typeof ShiftTripRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/shift/summary': {
       id: '/shift/summary'
-      path: '/summary'
+      path: '/shift/summary'
       fullPath: '/shift/summary'
       preLoaderRoute: typeof ShiftSummaryRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/shift/start': {
       id: '/shift/start'
-      path: '/start'
+      path: '/shift/start'
       fullPath: '/shift/start'
       preLoaderRoute: typeof ShiftStartRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/shift/end': {
       id: '/shift/end'
-      path: '/end'
+      path: '/shift/end'
       fullPath: '/shift/end'
       preLoaderRoute: typeof ShiftEndRouteImport
-      parentRoute: typeof ShiftRoute
+      parentRoute: typeof rootRouteImport
     }
     '/admin/settings': {
       id: '/admin/settings'
@@ -434,6 +438,10 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   SetupRoute: SetupRoute,
+  ShiftEndRoute: ShiftEndRoute,
+  ShiftStartRoute: ShiftStartRoute,
+  ShiftSummaryRoute: ShiftSummaryRoute,
+  ShiftTripRoute: ShiftTripRoute,
   ShiftIndexRoute: ShiftIndexRoute,
 }
 export const routeTree = rootRouteImport
