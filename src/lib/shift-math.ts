@@ -2,7 +2,7 @@ export type Trip = { distance_km: number | null; gross_fare_php: number };
 export type FuelLog = { total_cost_php: number; liters: number | null };
 export type FeeEntry = {
   amount_php: number;
-  category: { entry_type: "income" | "expense" } | null;
+  category: { entry_type: string } | null;
 };
 
 export type ShiftMath = {
