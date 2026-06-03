@@ -123,6 +123,7 @@ function Wizard({ onDone }: { onDone: () => void }) {
   }
 
   // Step 4 — bike
+  const queryClient = useQueryClient();
   const completeBike = useServerFn(completeBikeSetup);
   const [tank, setTank] = useState("");
   const [brand, setBrand] = useState("");
