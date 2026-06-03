@@ -31,6 +31,12 @@ function EndShiftPage() {
   if (active.data && !active.data.shift) return <Navigate to="/shift" />;
 
   const startingOdo = Number(active.data?.shift?.starting_odometer_km ?? 0);
+  const tripSumKm = (active.data?.trips ?? []).reduce(
+    (s, t) => s + Number(t.distance_km ?? 0), 0,
+  );
+  const oNum = Number(odo);
+  const previewShiftKm = oNum > startingOdo ? oNum - startingOdo : 0;
+  const previewUnloggedKm = previewShiftKm > 0 ? Math.max(0, previewShiftKm - tripSumKm) : 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
