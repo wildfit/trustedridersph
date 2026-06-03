@@ -146,6 +146,9 @@ function Wizard({ onDone }: { onDone: () => void }) {
           motorcycleModel: model.trim(),
         },
       });
+      // Bust the cached `first_sign_in_completed: false` read so the index
+      // redirect doesn't bounce the user back into the wizard.
+      await queryClient.invalidateQueries({ queryKey: ["profile-first-signin"] });
       setStep("done");
     } catch (e) {
       setBikeError((e as Error).message);
