@@ -8,6 +8,7 @@ export type FeeEntry = {
 export type ShiftMath = {
   shiftDistanceKm: number;
   tripDistanceSumKm: number;
+  unloggedKm: number;
   distanceMismatch: boolean;
   litersConsumed: number;
   fuelEfficiency: number | null; // km/L
