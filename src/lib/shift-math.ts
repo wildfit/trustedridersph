@@ -62,9 +62,12 @@ export function computeShift(args: {
   const totalExpenses = totalFuelCost + expenseFees;
   const netEarnings = grossEarnings - totalExpenses;
 
+  const unloggedKm = Math.max(0, shiftDistanceKm - tripDistanceSumKm);
+
   return {
     shiftDistanceKm,
     tripDistanceSumKm,
+    unloggedKm,
     distanceMismatch,
     litersConsumed,
     fuelEfficiency,
