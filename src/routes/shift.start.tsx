@@ -16,6 +16,7 @@ function StartShiftPage() {
   const [odo, setOdo] = useState("");
   const [rate, setRate] = useState("");
   const [startCost, setStartCost] = useState("");
+  const [tankFull, setTankFull] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +35,7 @@ function StartShiftPage() {
           startingOdometerKm: o,
           gasRate: rate ? Number(rate) : undefined,
           startingFuelCostPhp: startCost ? Number(startCost) : undefined,
+          startingTankFull: tankFull,
         },
       });
       await qc.invalidateQueries({ queryKey: ["active-shift"] });
