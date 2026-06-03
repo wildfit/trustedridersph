@@ -31,7 +31,7 @@ function SetupWizard() {
 
   if (session === undefined) return <FullScreenSpinner />;
   if (session === null) return <Navigate to="/login" />;
-  return <Wizard onDone={() => navigate({ to: "/" })} />;
+  return <Wizard onDone={() => navigate({ to: "/", replace: true })} />;
 }
 
 function Wizard({ onDone }: { onDone: () => void }) {
