@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate, Navigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Check } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -31,7 +31,7 @@ function SetupWizard() {
 
   if (session === undefined) return <FullScreenSpinner />;
   if (session === null) return <Navigate to="/login" />;
-  return <Wizard onDone={() => navigate({ to: "/" })} />;
+  return <Wizard onDone={() => navigate({ to: "/", replace: true })} />;
 }
 
 function Wizard({ onDone }: { onDone: () => void }) {
@@ -123,6 +123,7 @@ function Wizard({ onDone }: { onDone: () => void }) {
   }
 
   // Step 4 — bike
+  const queryClient = useQueryClient();
   const completeBike = useServerFn(completeBikeSetup);
   const [tank, setTank] = useState("");
   const [brand, setBrand] = useState("");
@@ -145,6 +146,9 @@ function Wizard({ onDone }: { onDone: () => void }) {
           motorcycleModel: model.trim(),
         },
       });
+      // Bust the cached `first_sign_in_completed: false` read so the index
+      // redirect doesn't bounce the user back into the wizard.
+      await queryClient.invalidateQueries({ queryKey: ["profile-first-signin"] });
       setStep("done");
     } catch (e) {
       setBikeError((e as Error).message);
