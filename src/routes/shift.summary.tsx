@@ -72,13 +72,15 @@ function SummaryPage() {
           />
         </div>
 
-        {math.distanceMismatch && (
+        {math.unloggedKm > 0 && (
           <div className="card-surface mt-4 flex gap-3 border-accent/40 bg-accent/5">
             <AlertTriangle className="size-5 text-accent shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold">Distance check</p>
+              <p className="font-semibold">{km(math.unloggedKm)} not logged in any trip</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Trips total {km(math.tripDistanceSumKm)}, but your odometer shows {km(math.shiftDistanceKm)}.
+                Your odometer says you rode {km(math.shiftDistanceKm)}, but your trips only
+                add up to {km(math.tripDistanceSumKm)}. The difference might be personal
+                trips, dead miles, or trips you forgot to log.
               </p>
             </div>
           </div>

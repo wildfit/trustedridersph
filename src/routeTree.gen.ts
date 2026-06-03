@@ -22,6 +22,7 @@ import { Route as ShiftTripRouteImport } from './routes/shift.trip'
 import { Route as ShiftSummaryRouteImport } from './routes/shift.summary'
 import { Route as ShiftStartRouteImport } from './routes/shift.start'
 import { Route as ShiftEndRouteImport } from './routes/shift.end'
+import { Route as ShiftEditRouteImport } from './routes/shift.edit'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminRecordsRouteImport } from './routes/admin.records'
 import { Route as AdminLiveRouteImport } from './routes/admin.live'
@@ -96,6 +97,11 @@ const ShiftEndRoute = ShiftEndRouteImport.update({
   path: '/shift/end',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShiftEditRoute = ShiftEditRouteImport.update({
+  id: '/shift/edit',
+  path: '/shift/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/shift/edit': typeof ShiftEditRoute
   '/shift/end': typeof ShiftEndRoute
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
@@ -177,6 +184,7 @@ export interface FileRoutesByTo {
   '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/shift/edit': typeof ShiftEditRoute
   '/shift/end': typeof ShiftEndRoute
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
@@ -201,6 +209,7 @@ export interface FileRoutesById {
   '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/shift/edit': typeof ShiftEditRoute
   '/shift/end': typeof ShiftEndRoute
   '/shift/start': typeof ShiftStartRoute
   '/shift/summary': typeof ShiftSummaryRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/admin/live'
     | '/admin/records'
     | '/admin/settings'
+    | '/shift/edit'
     | '/shift/end'
     | '/shift/start'
     | '/shift/summary'
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/admin/live'
     | '/admin/records'
     | '/admin/settings'
+    | '/shift/edit'
     | '/shift/end'
     | '/shift/start'
     | '/shift/summary'
@@ -272,6 +283,7 @@ export interface FileRouteTypes {
     | '/admin/live'
     | '/admin/records'
     | '/admin/settings'
+    | '/shift/edit'
     | '/shift/end'
     | '/shift/start'
     | '/shift/summary'
@@ -288,6 +300,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   SetupRoute: typeof SetupRoute
+  ShiftEditRoute: typeof ShiftEditRoute
   ShiftEndRoute: typeof ShiftEndRoute
   ShiftStartRoute: typeof ShiftStartRoute
   ShiftSummaryRoute: typeof ShiftSummaryRoute
@@ -388,6 +401,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ShiftEndRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shift/edit': {
+      id: '/shift/edit'
+      path: '/shift/edit'
+      fullPath: '/shift/edit'
+      preLoaderRoute: typeof ShiftEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/settings'
@@ -480,6 +500,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   SetupRoute: SetupRoute,
+  ShiftEditRoute: ShiftEditRoute,
   ShiftEndRoute: ShiftEndRoute,
   ShiftStartRoute: ShiftStartRoute,
   ShiftSummaryRoute: ShiftSummaryRoute,

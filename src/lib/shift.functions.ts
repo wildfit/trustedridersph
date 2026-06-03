@@ -73,13 +73,13 @@ export const startShift = createServerFn({ method: "POST" })
         startingOdometerKm: z.number().min(0).max(9_999_999),
         gasRate: z.number().min(1).max(500).optional(),
         startingFuelCostPhp: z.number().min(0).max(100_000).optional(),
+        startingTankFull: z.boolean().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Block creating a second active shift (DB also enforces with unique index).
     const { data: existing } = await supabase
       .from("shifts").select("id").eq("driver_id", userId).is("ended_at", null).maybeSingle();
     if (existing) throw new Error("You already have an active shift.");
@@ -90,6 +90,7 @@ export const startShift = createServerFn({ method: "POST" })
         driver_id: userId,
         starting_odometer_km: data.startingOdometerKm,
         gas_rate_php_per_liter: data.gasRate ?? null,
+        starting_tank_full: data.startingTankFull ?? false,
       })
       .select("*")
       .single();
@@ -106,6 +107,31 @@ export const startShift = createServerFn({ method: "POST" })
       });
     }
     return { shift };
+  });
+
+export const updateShiftStart = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        shiftId: z.string().uuid(),
+        startingOdometerKm: z.number().min(0).max(9_999_999),
+        gasRate: z.number().min(1).max(500).nullable().optional(),
+        startingTankFull: z.boolean().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("shifts")
+      .update({
+        starting_odometer_km: data.startingOdometerKm,
+        gas_rate_php_per_liter: data.gasRate ?? null,
+        starting_tank_full: data.startingTankFull ?? false,
+      })
+      .eq("id", data.shiftId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 export const addTrip = createServerFn({ method: "POST" })
@@ -132,6 +158,53 @@ export const addTrip = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+export const updateTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        serviceType: z.enum(["angkas", "pabakal", "padala"]),
+        distanceKm: z.number().min(0).max(1000),
+        grossFarePhp: z.number().min(0).max(100_000),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("trips")
+      .update({
+        service_type: data.serviceType as ServiceType,
+        distance_km: data.distanceKm,
+        gross_fare_php: data.grossFarePhp,
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const deleteTrip = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("trips").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const getTrip = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: trip, error } = await context.supabase
+      .from("trips")
+      .select("id, shift_id, service_type, distance_km, gross_fare_php")
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+    return trip;
   });
 
 export const addFuelLog = createServerFn({ method: "POST" })

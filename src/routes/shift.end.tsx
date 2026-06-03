@@ -31,6 +31,12 @@ function EndShiftPage() {
   if (active.data && !active.data.shift) return <Navigate to="/shift" />;
 
   const startingOdo = Number(active.data?.shift?.starting_odometer_km ?? 0);
+  const tripSumKm = (active.data?.trips ?? []).reduce(
+    (s, t) => s + Number(t.distance_km ?? 0), 0,
+  );
+  const oNum = Number(odo);
+  const previewShiftKm = oNum > startingOdo ? oNum - startingOdo : 0;
+  const previewUnloggedKm = previewShiftKm > 0 ? Math.max(0, previewShiftKm - tripSumKm) : 0;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +84,21 @@ function EndShiftPage() {
             onChange={(e) => { setOdo(e.target.value); setConfirming(false); }}
           />
         </label>
+
+        {previewShiftKm > 0 && (
+          <div className="card-surface">
+            <p className="text-sm text-muted-foreground">Total shift distance</p>
+            <p className="text-xl font-bold">{previewShiftKm.toFixed(1)} km</p>
+            <p className="text-sm text-muted-foreground mt-2">Logged in trips</p>
+            <p className="text-lg font-semibold">{tripSumKm.toFixed(1)} km</p>
+            {previewUnloggedKm > 0 && (
+              <p className="mt-3 text-sm font-semibold text-accent">
+                {previewUnloggedKm.toFixed(1)} km not logged in any trip
+              </p>
+            )}
+          </div>
+        )}
+
 
         {error && <p className="text-destructive font-medium">{error}</p>}
 

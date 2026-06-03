@@ -8,6 +8,7 @@ export type FeeEntry = {
 export type ShiftMath = {
   shiftDistanceKm: number;
   tripDistanceSumKm: number;
+  unloggedKm: number;
   distanceMismatch: boolean;
   litersConsumed: number;
   fuelEfficiency: number | null; // km/L
@@ -61,9 +62,12 @@ export function computeShift(args: {
   const totalExpenses = totalFuelCost + expenseFees;
   const netEarnings = grossEarnings - totalExpenses;
 
+  const unloggedKm = Math.max(0, shiftDistanceKm - tripDistanceSumKm);
+
   return {
     shiftDistanceKm,
     tripDistanceSumKm,
+    unloggedKm,
     distanceMismatch,
     litersConsumed,
     fuelEfficiency,
@@ -72,5 +76,49 @@ export function computeShift(args: {
     netEarnings,
     totalFuelCost,
     tripsCount: trips.length,
+  };
+}
+
+/**
+ * Estimate fuel left in the motorcycle's tank during a shift.
+ * Returns null when we don't have enough info to estimate.
+ *
+ * Logic:
+ *  - Baseline liters at shift start:
+ *      * If startingTankFull: tankCapacityLiters
+ *      * Else: liters from the very first fuel log (assumed to be the starting fill)
+ *  - Plus liters from any additional fuel logs after the first
+ *  - Minus estimated liters consumed = shiftDistanceKm / assumedKmPerLiter
+ *    (assumedKmPerLiter falls back to a sensible default if no history yet)
+ */
+export function estimateFuelLeft(args: {
+  startingTankFull: boolean;
+  tankCapacityLiters: number | null;
+  fuelLogs: { liters: number | null; logged_at?: string }[];
+  shiftDistanceKm: number;
+  assumedKmPerLiter: number | null;
+}): { liters: number; capacity: number | null; assumed: boolean } | null {
+  const { startingTankFull, tankCapacityLiters, fuelLogs, shiftDistanceKm } = args;
+  const kmPerL = args.assumedKmPerLiter && args.assumedKmPerLiter > 0 ? args.assumedKmPerLiter : 40; // sane default for a small motorcycle
+
+  let baseline = 0;
+  let extraFromRefuels = 0;
+
+  if (startingTankFull) {
+    if (!tankCapacityLiters || tankCapacityLiters <= 0) return null;
+    baseline = tankCapacityLiters;
+    extraFromRefuels = fuelLogs.reduce((s, f) => s + Number(f.liters ?? 0), 0);
+  } else {
+    if (fuelLogs.length === 0) return null;
+    baseline = Number(fuelLogs[0].liters ?? 0);
+    extraFromRefuels = fuelLogs.slice(1).reduce((s, f) => s + Number(f.liters ?? 0), 0);
+  }
+
+  const consumed = shiftDistanceKm > 0 ? shiftDistanceKm / kmPerL : 0;
+  const liters = Math.max(0, baseline + extraFromRefuels - consumed);
+  return {
+    liters,
+    capacity: tankCapacityLiters ?? null,
+    assumed: !args.assumedKmPerLiter,
   };
 }

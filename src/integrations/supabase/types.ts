@@ -267,6 +267,7 @@ export type Database = {
           notes: string | null
           started_at: string
           starting_odometer_km: number | null
+          starting_tank_full: boolean
           updated_at: string
         }
         Insert: {
@@ -279,6 +280,7 @@ export type Database = {
           notes?: string | null
           started_at?: string
           starting_odometer_km?: number | null
+          starting_tank_full?: boolean
           updated_at?: string
         }
         Update: {
@@ -291,6 +293,7 @@ export type Database = {
           notes?: string | null
           started_at?: string
           starting_odometer_km?: number | null
+          starting_tank_full?: boolean
           updated_at?: string
         }
         Relationships: []
