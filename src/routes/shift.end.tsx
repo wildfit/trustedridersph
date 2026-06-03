@@ -85,6 +85,21 @@ function EndShiftPage() {
           />
         </label>
 
+        {previewShiftKm > 0 && (
+          <div className="card-surface">
+            <p className="text-sm text-muted-foreground">Total shift distance</p>
+            <p className="text-xl font-bold">{previewShiftKm.toFixed(1)} km</p>
+            <p className="text-sm text-muted-foreground mt-2">Logged in trips</p>
+            <p className="text-lg font-semibold">{tripSumKm.toFixed(1)} km</p>
+            {previewUnloggedKm > 0 && (
+              <p className="mt-3 text-sm font-semibold text-accent">
+                {previewUnloggedKm.toFixed(1)} km not logged in any trip
+              </p>
+            )}
+          </div>
+        )}
+
+
         {error && <p className="text-destructive font-medium">{error}</p>}
 
         <button type="submit" disabled={busy} className="btn-primary mt-2">
