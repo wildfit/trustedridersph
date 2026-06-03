@@ -174,6 +174,135 @@ export const resetDriverPassword = createServerFn({ method: "POST" })
     return { ok: true, password: defaultPw };
   });
 
+export const createDriver = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        email: z.string().email().max(255),
+        full_name: z.string().min(1).max(120),
+        phone: z.string().max(40).optional().nullable(),
+        motorcycle_brand: z.string().max(80).optional().nullable(),
+        motorcycle_model: z.string().max(80).optional().nullable(),
+        fuel_tank_liters: z.number().positive().max(100).optional().nullable(),
+        password: z.string().min(6).max(72).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    const { data: setting } = await supabaseAdmin
+      .from("app_settings").select("value").eq("key", "default_driver_password").maybeSingle();
+    const defaultPw =
+      data.password || (setting?.value as string) || process.env.SUPERADMIN_DEFAULT_PASSWORD || "Welcome312";
+
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: defaultPw,
+      email_confirm: true,
+      user_metadata: { full_name: data.full_name, phone: data.phone ?? undefined },
+    });
+    if (error) throw new Error(error.message);
+    const userId = created.user!.id;
+
+    // handle_new_user trigger seeds default 'driver' role + profile row.
+    // Patch profile with any additional fields supplied.
+    await supabaseAdmin
+      .from("profiles")
+      .upsert(
+        {
+          id: userId,
+          full_name: data.full_name,
+          phone: data.phone ?? null,
+          motorcycle_brand: data.motorcycle_brand ?? null,
+          motorcycle_model: data.motorcycle_model ?? null,
+          fuel_tank_liters: data.fuel_tank_liters ?? null,
+          first_sign_in_completed: false,
+        },
+        { onConflict: "id" },
+      );
+
+    await supabaseAdmin
+      .from("user_roles")
+      .upsert({ user_id: userId, role: "driver" }, { onConflict: "user_id,role" });
+
+    await logAudit({
+      actorId: context.userId, entityType: "profile", entityId: userId,
+      action: "create_driver", after: { email: data.email, full_name: data.full_name },
+    });
+    return { ok: true, driverId: userId, password: defaultPw };
+  });
+
+export const updateDriverProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        driverId: z.string().uuid(),
+        full_name: z.string().min(1).max(120).optional(),
+        phone: z.string().max(40).nullable().optional(),
+        motorcycle_brand: z.string().max(80).nullable().optional(),
+        motorcycle_model: z.string().max(80).nullable().optional(),
+        fuel_tank_liters: z.number().positive().max(100).nullable().optional(),
+        email: z.string().email().max(255).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { driverId, email, ...profilePatch } = data;
+
+    const { data: before } = await supabaseAdmin
+      .from("profiles").select("*").eq("id", driverId).single();
+
+    if (Object.keys(profilePatch).length > 0) {
+      const { error } = await supabaseAdmin
+        .from("profiles").update(profilePatch).eq("id", driverId);
+      if (error) throw new Error(error.message);
+    }
+
+    if (email) {
+      const { error: eErr } = await supabaseAdmin.auth.admin.updateUserById(driverId, { email });
+      if (eErr) throw new Error(eErr.message);
+    }
+
+    await logAudit({
+      actorId: context.userId, entityType: "profile", entityId: driverId,
+      action: "update_driver", before, after: { ...profilePatch, email },
+    });
+    return { ok: true };
+  });
+
+export const deleteDriver = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ driverId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    const { data: before } = await supabaseAdmin
+      .from("profiles").select("*").eq("id", data.driverId).single();
+
+    // Wipe driver-owned rows first (no FK cascade configured).
+    await supabaseAdmin.from("fee_entries").delete().eq("driver_id", data.driverId);
+    await supabaseAdmin.from("fuel_logs").delete().eq("driver_id", data.driverId);
+    await supabaseAdmin.from("trips").delete().eq("driver_id", data.driverId);
+    await supabaseAdmin.from("shifts").delete().eq("driver_id", data.driverId);
+    await supabaseAdmin.from("user_requests").delete().eq("driver_id", data.driverId);
+    await supabaseAdmin.from("user_security_answers").delete().eq("user_id", data.driverId);
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.driverId);
+    await supabaseAdmin.from("profiles").delete().eq("id", data.driverId);
+
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.driverId);
+    if (error) throw new Error(error.message);
+
+    await logAudit({
+      actorId: context.userId, entityType: "profile", entityId: data.driverId,
+      action: "delete_driver", before,
+    });
+    return { ok: true };
+  });
+
 // ============================================================
 // FEE CATEGORIES
 // ============================================================
