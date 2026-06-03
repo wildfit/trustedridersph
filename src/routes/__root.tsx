@@ -11,6 +11,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { supabase } from "@/integrations/supabase/client";
+import { InstallPrompt } from "@/components/InstallPrompt";
 
 function NotFoundComponent() {
   return (
@@ -79,7 +80,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.json" },
       { rel: "icon", type: "image/svg+xml", href: "/icon.svg" },
-      { rel: "apple-touch-icon", href: "/icon.svg" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icon-192.png" },
+      { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -120,12 +122,50 @@ function AuthSync() {
   }, [router, queryClient]);
   return null;
 }
+function PWARegistration() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+
+    // Guard: never register inside the Lovable editor iframe or on preview hosts.
+    let inIframe = false;
+    try {
+      inIframe = window.self !== window.top;
+    } catch {
+      inIframe = true;
+    }
+    const host = window.location.hostname;
+    const isPreviewHost =
+      host.includes("id-preview--") ||
+      host.includes("lovableproject.com") ||
+      host.includes("lovable.dev");
+
+    if (inIframe || isPreviewHost) {
+      // Clean up any stragglers from prior installs in this context.
+      navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
+      return;
+    }
+
+    // Only register on real HTTPS origins (or localhost for dev).
+    if (window.location.protocol !== "https:" && host !== "localhost" && host !== "127.0.0.1") {
+      return;
+    }
+
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("[PWA] service worker registration failed:", err);
+    });
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
       <AuthSync />
+      <PWARegistration />
       <Outlet />
+      <InstallPrompt />
     </QueryClientProvider>
   );
 }
