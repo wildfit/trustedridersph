@@ -86,6 +86,19 @@ function StartShiftPage() {
           </label>
         </div>
 
+        <label className="card-surface flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox" className="size-6 mt-0.5 accent-primary"
+            checked={tankFull} onChange={(e) => setTankFull(e.target.checked)}
+          />
+          <div>
+            <p className="font-semibold">I'm starting with a full tank</p>
+            <p className="text-sm text-muted-foreground">
+              Tick this if you just filled up. We'll estimate fuel left during the shift.
+            </p>
+          </div>
+        </label>
+
         {error && <p className="text-destructive font-medium">{error}</p>}
         <button type="submit" disabled={busy} className="btn-primary mt-2">
           {busy ? "Starting..." : "Start shift"}
