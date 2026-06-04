@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SetupRouteImport } from './routes/setup'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FuelRouteImport } from './routes/fuel'
@@ -35,6 +36,11 @@ import { Route as AdminDashboardRouteImport } from './routes/admin.dashboard'
 const SetupRoute = SetupRouteImport.update({
   id: '/setup',
   path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -151,6 +157,7 @@ export interface FileRoutesByFullPath {
   '/fuel': typeof FuelRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/reports': typeof ReportsRoute
   '/setup': typeof SetupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/drivers': typeof AdminDriversRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/fuel': typeof FuelRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/reports': typeof ReportsRoute
   '/setup': typeof SetupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/drivers': typeof AdminDriversRoute
@@ -200,6 +208,7 @@ export interface FileRoutesById {
   '/fuel': typeof FuelRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
+  '/reports': typeof ReportsRoute
   '/setup': typeof SetupRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/drivers': typeof AdminDriversRoute
@@ -226,6 +235,7 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/login'
     | '/profile'
+    | '/reports'
     | '/setup'
     | '/admin/dashboard'
     | '/admin/drivers'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/login'
     | '/profile'
+    | '/reports'
     | '/setup'
     | '/admin/dashboard'
     | '/admin/drivers'
@@ -274,6 +285,7 @@ export interface FileRouteTypes {
     | '/fuel'
     | '/login'
     | '/profile'
+    | '/reports'
     | '/setup'
     | '/admin/dashboard'
     | '/admin/drivers'
@@ -299,6 +311,7 @@ export interface RootRouteChildren {
   FuelRoute: typeof FuelRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
+  ReportsRoute: typeof ReportsRoute
   SetupRoute: typeof SetupRoute
   ShiftEditRoute: typeof ShiftEditRoute
   ShiftEndRoute: typeof ShiftEndRoute
@@ -315,6 +328,13 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup'
       preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -499,6 +519,7 @@ const rootRouteChildren: RootRouteChildren = {
   FuelRoute: FuelRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
+  ReportsRoute: ReportsRoute,
   SetupRoute: SetupRoute,
   ShiftEditRoute: ShiftEditRoute,
   ShiftEndRoute: ShiftEndRoute,

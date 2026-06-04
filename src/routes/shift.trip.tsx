@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Navigate, useNavigate, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,6 +22,7 @@ function AddTripPage() {
   const { id: editId } = Route.useSearch();
   const session = useAuthSession();
   const navigate = useNavigate();
+  const router = useRouter();
   const qc = useQueryClient();
   const fetchActive = useServerFn(getActiveShift);
   const fetchTrip = useServerFn(getTrip);
@@ -87,7 +88,13 @@ function AddTripPage() {
         });
       }
       await qc.invalidateQueries({ queryKey: ["active-shift"] });
-      navigate({ to: "/shift" });
+      await qc.invalidateQueries({ queryKey: ["my-shifts"] });
+      if (editId) {
+        await qc.invalidateQueries({ queryKey: ["shift-summary"] });
+        router.history.back();
+      } else {
+        navigate({ to: "/shift" });
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -102,7 +109,9 @@ function AddTripPage() {
     try {
       await runDelete({ data: { id: editId } });
       await qc.invalidateQueries({ queryKey: ["active-shift"] });
-      navigate({ to: "/shift" });
+      await qc.invalidateQueries({ queryKey: ["my-shifts"] });
+      await qc.invalidateQueries({ queryKey: ["shift-summary"] });
+      router.history.back();
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
