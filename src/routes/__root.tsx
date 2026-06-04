@@ -12,6 +12,12 @@ import {
 import appCss from "../styles.css?url";
 import { supabase } from "@/integrations/supabase/client";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { useHeartbeat } from "@/hooks/use-heartbeat";
+
+function HeartbeatPing() {
+  useHeartbeat();
+  return null;
+}
 
 function NotFoundComponent() {
   return (
@@ -164,6 +170,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthSync />
       <PWARegistration />
+      <HeartbeatPing />
       <Outlet />
       <InstallPrompt />
     </QueryClientProvider>
