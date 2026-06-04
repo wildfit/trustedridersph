@@ -88,7 +88,13 @@ function AddTripPage() {
         });
       }
       await qc.invalidateQueries({ queryKey: ["active-shift"] });
-      navigate({ to: "/shift" });
+      await qc.invalidateQueries({ queryKey: ["my-shifts"] });
+      if (editId) {
+        await qc.invalidateQueries({ queryKey: ["shift-summary"] });
+        router.history.back();
+      } else {
+        navigate({ to: "/shift" });
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -103,7 +109,9 @@ function AddTripPage() {
     try {
       await runDelete({ data: { id: editId } });
       await qc.invalidateQueries({ queryKey: ["active-shift"] });
-      navigate({ to: "/shift" });
+      await qc.invalidateQueries({ queryKey: ["my-shifts"] });
+      await qc.invalidateQueries({ queryKey: ["shift-summary"] });
+      router.history.back();
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
