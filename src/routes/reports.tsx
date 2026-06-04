@@ -144,9 +144,7 @@ function ReportsPage() {
                 type="button"
                 className="col-span-2 btn-secondary"
                 onClick={() =>
-                  navigate({
-                    search: (p) => ({ ...p, range: "custom", from: customFrom || undefined, to: customTo || undefined }),
-                  })
+                  navigate({ search: (p: Record<string, unknown>) => ({ ...p, range: "custom", from: customFrom || undefined, to: customTo || undefined }) })
                 }
               >
                 Apply dates
