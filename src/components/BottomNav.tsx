@@ -16,7 +16,7 @@ export function BottomNav() {
       className="fixed bottom-0 inset-x-0 z-30 bg-card border-t border-border pb-[env(safe-area-inset-bottom)]"
       aria-label="Main navigation"
     >
-      <ul className="max-w-md mx-auto grid grid-cols-4">
+      <ul className="max-w-md mx-auto grid grid-cols-5">
         {TABS.map((t) => {
           const active = pathname === t.to || pathname.startsWith(t.to + "/");
           const Icon = t.icon;
