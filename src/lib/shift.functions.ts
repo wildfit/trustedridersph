@@ -411,7 +411,7 @@ export const getShiftSummary = createServerFn({ method: "GET" })
     const { supabase } = context;
     const [shiftRes, tripsRes, fuelRes, feesRes] = await Promise.all([
       supabase.from("shifts").select("*").eq("id", data.shiftId).single(),
-      supabase.from("trips").select("distance_km, gross_fare_php").eq("shift_id", data.shiftId),
+      supabase.from("trips").select("id, service_type, distance_km, gross_fare_php, started_at").eq("shift_id", data.shiftId).order("started_at", { ascending: false }),
       supabase.from("fuel_logs").select("total_cost_php, liters").eq("shift_id", data.shiftId),
       supabase
         .from("fee_entries")
