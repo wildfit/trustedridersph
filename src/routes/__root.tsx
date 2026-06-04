@@ -170,6 +170,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthSync />
       <PWARegistration />
+      <HeartbeatPing />
       <Outlet />
       <InstallPrompt />
     </QueryClientProvider>
