@@ -22,6 +22,7 @@ function AddTripPage() {
   const { id: editId } = Route.useSearch();
   const session = useAuthSession();
   const navigate = useNavigate();
+  const router = useRouter();
   const qc = useQueryClient();
   const fetchActive = useServerFn(getActiveShift);
   const fetchTrip = useServerFn(getTrip);
