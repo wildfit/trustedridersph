@@ -315,6 +315,95 @@ export const endShift = createServerFn({ method: "POST" })
     return { ok: true as const, shiftId: data.shiftId };
   });
 
+export const updateShiftEnd = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        shiftId: z.string().uuid(),
+        endingOdometerKm: z.number().min(0).max(9_999_999),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: shift, error: sErr } = await supabase
+      .from("shifts").select("starting_odometer_km, ended_at").eq("id", data.shiftId).single();
+    if (sErr) throw new Error(sErr.message);
+    const start = Number(shift.starting_odometer_km ?? 0);
+    if (data.endingOdometerKm < start) {
+      throw new Error(`Ending reading must be at least your starting reading of ${start} km.`);
+    }
+    const { error } = await supabase
+      .from("shifts")
+      .update({ ending_odometer_km: data.endingOdometerKm })
+      .eq("id", data.shiftId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const listMyShifts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+        status: z.enum(["all", "ended", "active"]).optional(),
+        serviceType: z.enum(["angkas", "pabakal", "padala"]).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    let q = supabase
+      .from("shifts")
+      .select("id, started_at, ended_at, starting_odometer_km, ending_odometer_km, gas_rate_php_per_liter, starting_tank_full")
+      .eq("driver_id", userId)
+      .order("started_at", { ascending: false })
+      .limit(200);
+    if (data.from) q = q.gte("started_at", data.from);
+    if (data.to) q = q.lte("started_at", data.to);
+    if (data.status === "ended") q = q.not("ended_at", "is", null);
+    if (data.status === "active") q = q.is("ended_at", null);
+    const { data: shifts, error } = await q;
+    if (error) throw new Error(error.message);
+    if (!shifts || shifts.length === 0) return { shifts: [] };
+
+    const ids = shifts.map((s) => s.id);
+    const [tripsRes, fuelRes, feesRes] = await Promise.all([
+      supabase.from("trips").select("shift_id, service_type, distance_km, gross_fare_php").in("shift_id", ids),
+      supabase.from("fuel_logs").select("shift_id, total_cost_php, liters").in("shift_id", ids),
+      supabase.from("fee_entries").select("shift_id, amount_php, category:fee_categories(entry_type)").in("shift_id", ids),
+    ]);
+    if (tripsRes.error) throw new Error(tripsRes.error.message);
+    if (fuelRes.error) throw new Error(fuelRes.error.message);
+    if (feesRes.error) throw new Error(feesRes.error.message);
+
+    const byShift: Record<string, {
+      trips: { service_type: string; distance_km: number | null; gross_fare_php: number }[];
+      fuelLogs: { total_cost_php: number; liters: number | null }[];
+      feeEntries: { amount_php: number; category: { entry_type: string } | null }[];
+    }> = {};
+    for (const id of ids) byShift[id] = { trips: [], fuelLogs: [], feeEntries: [] };
+    for (const t of tripsRes.data ?? []) byShift[t.shift_id!]?.trips.push(t);
+    for (const f of fuelRes.data ?? []) byShift[f.shift_id!]?.fuelLogs.push(f);
+    for (const f of feesRes.data ?? []) byShift[f.shift_id!]?.feeEntries.push(f);
+
+    const filtered = data.serviceType
+      ? shifts.filter((s) => byShift[s.id].trips.some((t) => t.service_type === data.serviceType))
+      : shifts;
+
+    return {
+      shifts: filtered.map((s) => ({
+        ...s,
+        trips: byShift[s.id].trips,
+        fuelLogs: byShift[s.id].fuelLogs,
+        feeEntries: byShift[s.id].feeEntries,
+      })),
+    };
+  });
+
 export const getShiftSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ shiftId: z.string().uuid() }).parse(d))
