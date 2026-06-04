@@ -97,13 +97,13 @@ function ReportsPage() {
   );
 
   function setRange(r: RangeKey) {
-    navigate({ search: (prev) => ({ ...prev, range: r }) });
+    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, range: r }) });
   }
   function setStatus(s: StatusKey) {
-    navigate({ search: (prev) => ({ ...prev, status: s }) });
+    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, status: s }) });
   }
   function setService(s: ServiceKey) {
-    navigate({ search: (prev) => ({ ...prev, service: s }) });
+    navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, service: s }) });
   }
 
   return (
