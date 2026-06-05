@@ -13,6 +13,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as FuelRouteImport } from './routes/fuel'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FeesRouteImport } from './routes/fees'
@@ -25,6 +26,7 @@ import { Route as ShiftStartRouteImport } from './routes/shift.start'
 import { Route as ShiftEndRouteImport } from './routes/shift.end'
 import { Route as ShiftEditRouteImport } from './routes/shift.edit'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminRecordsRouteImport } from './routes/admin.records'
 import { Route as AdminLiveRouteImport } from './routes/admin.live'
 import { Route as AdminInboxRouteImport } from './routes/admin.inbox'
@@ -51,6 +53,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FuelRoute = FuelRouteImport.update({
@@ -113,9 +120,19 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRecordsRoute = AdminRecordsRouteImport.update({
   id: '/records',
   path: '/records',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminLiveRoute = AdminLiveRouteImport.update({
@@ -155,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
+  '/insights': typeof InsightsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
@@ -166,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/admin/inbox': typeof AdminInboxRoute
   '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/shift/edit': typeof ShiftEditRoute
   '/shift/end': typeof ShiftEndRoute
@@ -180,6 +199,7 @@ export interface FileRoutesByTo {
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
+  '/insights': typeof InsightsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
@@ -191,6 +211,7 @@ export interface FileRoutesByTo {
   '/admin/inbox': typeof AdminInboxRoute
   '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/shift/edit': typeof ShiftEditRoute
   '/shift/end': typeof ShiftEndRoute
@@ -206,6 +227,7 @@ export interface FileRoutesById {
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
+  '/insights': typeof InsightsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/reports': typeof ReportsRoute
@@ -217,6 +239,7 @@ export interface FileRoutesById {
   '/admin/inbox': typeof AdminInboxRoute
   '/admin/live': typeof AdminLiveRoute
   '/admin/records': typeof AdminRecordsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/shift/edit': typeof ShiftEditRoute
   '/shift/end': typeof ShiftEndRoute
@@ -233,6 +256,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot-password'
     | '/fuel'
+    | '/insights'
     | '/login'
     | '/profile'
     | '/reports'
@@ -244,6 +268,7 @@ export interface FileRouteTypes {
     | '/admin/inbox'
     | '/admin/live'
     | '/admin/records'
+    | '/admin/reports'
     | '/admin/settings'
     | '/shift/edit'
     | '/shift/end'
@@ -258,6 +283,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot-password'
     | '/fuel'
+    | '/insights'
     | '/login'
     | '/profile'
     | '/reports'
@@ -269,6 +295,7 @@ export interface FileRouteTypes {
     | '/admin/inbox'
     | '/admin/live'
     | '/admin/records'
+    | '/admin/reports'
     | '/admin/settings'
     | '/shift/edit'
     | '/shift/end'
@@ -283,6 +310,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot-password'
     | '/fuel'
+    | '/insights'
     | '/login'
     | '/profile'
     | '/reports'
@@ -294,6 +322,7 @@ export interface FileRouteTypes {
     | '/admin/inbox'
     | '/admin/live'
     | '/admin/records'
+    | '/admin/reports'
     | '/admin/settings'
     | '/shift/edit'
     | '/shift/end'
@@ -309,6 +338,7 @@ export interface RootRouteChildren {
   FeesRoute: typeof FeesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   FuelRoute: typeof FuelRoute
+  InsightsRoute: typeof InsightsRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   ReportsRoute: typeof ReportsRoute
@@ -349,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fuel': {
@@ -435,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/records': {
       id: '/admin/records'
       path: '/records'
@@ -495,6 +539,7 @@ interface AdminRouteChildren {
   AdminInboxRoute: typeof AdminInboxRoute
   AdminLiveRoute: typeof AdminLiveRoute
   AdminRecordsRoute: typeof AdminRecordsRoute
+  AdminReportsRoute: typeof AdminReportsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
 }
 
@@ -506,6 +551,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminInboxRoute: AdminInboxRoute,
   AdminLiveRoute: AdminLiveRoute,
   AdminRecordsRoute: AdminRecordsRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
 }
 
@@ -517,6 +563,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeesRoute: FeesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   FuelRoute: FuelRoute,
+  InsightsRoute: InsightsRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   ReportsRoute: ReportsRoute,
