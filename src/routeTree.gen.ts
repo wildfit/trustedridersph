@@ -130,11 +130,6 @@ const AdminRecordsRoute = AdminRecordsRouteImport.update({
   path: '/records',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminReportsRoute = AdminReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminLiveRoute = AdminLiveRouteImport.update({
   id: '/live',
   path: '/live',
