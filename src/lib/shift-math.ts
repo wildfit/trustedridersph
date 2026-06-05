@@ -47,16 +47,30 @@ export function computeShift(args: {
       ? totalFuelCost / gasRate
       : 0;
 
-  const fuelEfficiency =
+  // Raw km/L is misleading: liters PURCHASED ≠ liters BURNED (a top-up at
+  // the start of the shift inflates the denominator and yields single-digit
+  // km/L). Only surface a value when it falls in a realistic range for the
+  // bikes we serve. Otherwise the UI shows "—".
+  const REALISTIC_MIN_KMPL = 15;
+  const REALISTIC_MAX_KMPL = 80;
+  const rawEff =
     litersConsumed > 0 && shiftDistanceKm > 0 ? shiftDistanceKm / litersConsumed : null;
+  const fuelEfficiency =
+    rawEff != null && rawEff >= REALISTIC_MIN_KMPL && rawEff <= REALISTIC_MAX_KMPL
+      ? rawEff
+      : null;
+
 
   const grossTrips = trips.reduce((s, t) => s + Number(t.gross_fare_php ?? 0), 0);
   const incomeFees = feeEntries
-    .filter((f) => f.category?.entry_type !== "expense")
+    .filter((f) => f.category?.entry_type === "income")
     .reduce((s, f) => s + Number(f.amount_php ?? 0), 0);
   const expenseFees = feeEntries
     .filter((f) => f.category?.entry_type === "expense")
     .reduce((s, f) => s + Number(f.amount_php ?? 0), 0);
+  // Entries with null/missing category are uncategorized and intentionally
+  // excluded from both income and expense totals.
+
 
   const grossEarnings = grossTrips + incomeFees;
   const totalExpenses = totalFuelCost + expenseFees;
