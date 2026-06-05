@@ -657,6 +657,8 @@ export const getDashboardSummary = createServerFn({ method: "GET" })
       fuelByShift.set(f.shift_id!, (fuelByShift.get(f.shift_id!) ?? 0) + Number(f.total_cost_php ?? 0));
     for (const fe of feesRes.data ?? []) {
       const t = (fe.category as unknown as { entry_type?: string } | null)?.entry_type;
+      // Null/uncategorized entries are intentionally excluded from both totals.
+      if (t !== "income" && t !== "expense") continue;
       const m = t === "expense" ? feeExpByShift : feeIncByShift;
       m.set(fe.shift_id!, (m.get(fe.shift_id!) ?? 0) + Number(fe.amount_php));
     }
