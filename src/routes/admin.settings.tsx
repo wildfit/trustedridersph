@@ -7,7 +7,7 @@ import { listAppSettings, upsertAppSetting } from "@/lib/admin.functions";
 export const Route = createFileRoute("/admin/settings")({ component: SettingsPage });
 
 const KNOWN: { key: string; label: string; help: string }[] = [
-  { key: "default_driver_password", label: "Default driver password", help: "Used when resetting a driver's password or seeding new drivers." },
+  { key: "default_gas_rate_php_per_liter", label: "Default gas rate (₱/L)", help: "Pre-fills the gas rate when starting a new shift." },
   { key: "default_gas_rate_php_per_liter", label: "Default gas rate (₱/L)", help: "Pre-fills the gas rate when starting a new shift." },
   { key: "superadmin_email", label: "Superadmin email", help: "Email of the seeded superadmin account." },
   { key: "superadmin_username", label: "Superadmin display name", help: "Display name shown for the superadmin account." },
