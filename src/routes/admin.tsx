@@ -23,6 +23,7 @@ import {
   Menu,
   Inbox,
   Radio,
+  FileBarChart,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({ component: AdminLayout });
@@ -33,6 +34,7 @@ const NAV = [
   { to: "/admin/inbox", label: "Inbox", icon: Inbox },
   { to: "/admin/drivers", label: "Drivers", icon: Users },
   { to: "/admin/records", label: "Records", icon: ClipboardList },
+  { to: "/admin/reports", label: "Reports", icon: FileBarChart },
   { to: "/admin/fees", label: "Fee Categories", icon: Tags },
   { to: "/admin/settings", label: "Settings", icon: Settings },
   { to: "/admin/export", label: "Export", icon: Download },
