@@ -458,31 +458,37 @@ export const listShiftRecords = createServerFn({ method: "GET" })
         .in("shift_id", shiftIds),
     ]);
 
-    const totals = new Map<string, { distance: number; gross: number; fuel: number; feeIncome: number; feeExpense: number }>();
-    for (const s of shiftIds) totals.set(s, { distance: 0, gross: 0, fuel: 0, feeIncome: 0, feeExpense: 0 });
+    const totals = new Map<string, { tripDistance: number; gross: number; fuel: number; feeIncome: number; feeExpense: number }>();
+    for (const s of shiftIds) totals.set(s, { tripDistance: 0, gross: 0, fuel: 0, feeIncome: 0, feeExpense: 0 });
     for (const t of tripsRes.data ?? []) {
       const r = totals.get(t.shift_id!)!;
-      r.distance += Number(t.distance_km ?? 0);
+      r.tripDistance += Number(t.distance_km ?? 0);
       r.gross += Number(t.gross_fare_php ?? 0);
     }
     for (const f of fuelRes.data ?? []) {
       totals.get(f.shift_id!)!.fuel += Number(f.total_cost_php ?? 0);
     }
-    for (const fe of fuelRes.data ?? []) void fe;
     for (const fe of feesRes.data ?? []) {
       const r = totals.get(fe.shift_id!)!;
       const t = (fe.category as unknown as { entry_type?: string } | null)?.entry_type;
+      // Uncategorized (null) entries are skipped from income/expense totals.
       if (t === "expense") r.feeExpense += Number(fe.amount_php);
-      else r.feeIncome += Number(fe.amount_php);
+      else if (t === "income") r.feeIncome += Number(fe.amount_php);
     }
 
     return {
       shifts: shifts.map((s) => {
         const t = totals.get(s.id)!;
+        // Canonical total distance: odometer delta when both readings exist,
+        // else sum of trip distances (matches computeShift on the driver side).
+        const start = s.starting_odometer_km != null ? Number(s.starting_odometer_km) : null;
+        const end = s.ending_odometer_km != null ? Number(s.ending_odometer_km) : null;
+        const totalDistance =
+          start != null && end != null ? Math.max(0, end - start) : t.tripDistance;
         return {
           ...s,
           driver_name: drivers[s.driver_id] ?? "",
-          total_distance_km: t.distance,
+          total_distance_km: totalDistance,
           gross_earnings_php: t.gross + t.feeIncome,
           fuel_cost_php: t.fuel,
           expenses_php: t.fuel + t.feeExpense,
@@ -492,6 +498,7 @@ export const listShiftRecords = createServerFn({ method: "GET" })
       drivers,
     };
   });
+
 
 export const getShiftDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
