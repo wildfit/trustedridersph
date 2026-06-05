@@ -764,3 +764,307 @@ export const exportRecords = createServerFn({ method: "GET" })
     return { rows };
   });
 
+
+// ============================================================
+// REPORTS — Fleet leaderboard + Data quality
+// ============================================================
+const ANALYTICS_KMPL_MIN = 10;
+const ANALYTICS_KMPL_MAX = 100;
+
+export const getFleetLeaderboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    let q = supabaseAdmin
+      .from("shifts")
+      .select("id, driver_id, started_at, ended_at, starting_odometer_km, ending_odometer_km")
+      .not("ended_at", "is", null)
+      .order("started_at", { ascending: false })
+      .limit(5000);
+    if (data.from) q = q.gte("started_at", data.from);
+    if (data.to) q = q.lte("started_at", data.to);
+    const { data: shifts, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const shiftIds = (shifts ?? []).map((s) => s.id);
+    const safeIds = shiftIds.length ? shiftIds : ["00000000-0000-0000-0000-000000000000"];
+    const driverIds = [...new Set((shifts ?? []).map((s) => s.driver_id))];
+
+    const [tripsRes, fuelRes, feesRes, profRes] = await Promise.all([
+      supabaseAdmin
+        .from("trips")
+        .select("shift_id, distance_km, gross_fare_php")
+        .in("shift_id", safeIds),
+      supabaseAdmin
+        .from("fuel_logs")
+        .select("shift_id, total_cost_php, liters")
+        .in("shift_id", safeIds),
+      supabaseAdmin
+        .from("fee_entries")
+        .select("shift_id, amount_php, category:fee_categories(entry_type)")
+        .in("shift_id", safeIds),
+      supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, last_seen_at")
+        .in("id", driverIds.length ? driverIds : ["00000000-0000-0000-0000-000000000000"]),
+    ]);
+
+    type Row = {
+      driver_id: string;
+      driver_name: string;
+      net: number;
+      gross: number;
+      fuel: number;
+      feeIncome: number;
+      feeExpense: number;
+      trips: number;
+      total_km: number;
+      between_km: number;
+      hours: number;
+      liters: number;
+      last_active: string | null;
+    };
+    const byDriver = new Map<string, Row>();
+    const profById = new Map((profRes.data ?? []).map((p) => [p.id, p]));
+    const shiftToDriver = new Map((shifts ?? []).map((s) => [s.id, s.driver_id]));
+
+    // per-shift trip distance + counts + gross
+    const trDist = new Map<string, number>();
+    const trGross = new Map<string, number>();
+    const trCount = new Map<string, number>();
+    for (const t of tripsRes.data ?? []) {
+      trDist.set(t.shift_id!, (trDist.get(t.shift_id!) ?? 0) + Number(t.distance_km ?? 0));
+      trGross.set(t.shift_id!, (trGross.get(t.shift_id!) ?? 0) + Number(t.gross_fare_php ?? 0));
+      trCount.set(t.shift_id!, (trCount.get(t.shift_id!) ?? 0) + 1);
+    }
+    const fuelCost = new Map<string, number>();
+    const fuelLit = new Map<string, number>();
+    for (const f of fuelRes.data ?? []) {
+      fuelCost.set(f.shift_id!, (fuelCost.get(f.shift_id!) ?? 0) + Number(f.total_cost_php ?? 0));
+      fuelLit.set(f.shift_id!, (fuelLit.get(f.shift_id!) ?? 0) + Number(f.liters ?? 0));
+    }
+    const feeIn = new Map<string, number>();
+    const feeEx = new Map<string, number>();
+    for (const fe of feesRes.data ?? []) {
+      const et = (fe.category as unknown as { entry_type?: string } | null)?.entry_type;
+      if (et === "income")
+        feeIn.set(fe.shift_id!, (feeIn.get(fe.shift_id!) ?? 0) + Number(fe.amount_php));
+      else if (et === "expense")
+        feeEx.set(fe.shift_id!, (feeEx.get(fe.shift_id!) ?? 0) + Number(fe.amount_php));
+    }
+
+    for (const s of shifts ?? []) {
+      const did = s.driver_id;
+      const prof = profById.get(did);
+      const row =
+        byDriver.get(did) ??
+        ({
+          driver_id: did,
+          driver_name: prof?.full_name ?? "(unknown)",
+          net: 0,
+          gross: 0,
+          fuel: 0,
+          feeIncome: 0,
+          feeExpense: 0,
+          trips: 0,
+          total_km: 0,
+          between_km: 0,
+          hours: 0,
+          liters: 0,
+          last_active: prof?.last_seen_at ?? null,
+        } as Row);
+      const start = s.starting_odometer_km != null ? Number(s.starting_odometer_km) : null;
+      const end = s.ending_odometer_km != null ? Number(s.ending_odometer_km) : null;
+      const trip = trDist.get(s.id) ?? 0;
+      const total = start != null && end != null ? Math.max(0, end - start) : trip;
+      row.total_km += total;
+      if (start != null && end != null) row.between_km += Math.max(0, total - trip);
+      row.trips += trCount.get(s.id) ?? 0;
+      const g = trGross.get(s.id) ?? 0;
+      const fi = feeIn.get(s.id) ?? 0;
+      const fc = fuelCost.get(s.id) ?? 0;
+      const fe = feeEx.get(s.id) ?? 0;
+      row.gross += g;
+      row.feeIncome += fi;
+      row.fuel += fc;
+      row.feeExpense += fe;
+      row.liters += fuelLit.get(s.id) ?? 0;
+      row.net += g + fi - fc - fe;
+      const startedAt = new Date(s.started_at as string).getTime();
+      const endedAt = s.ended_at ? new Date(s.ended_at as string).getTime() : startedAt;
+      row.hours += Math.max(0, (endedAt - startedAt) / 3600_000);
+      const sa = s.started_at as string;
+      if (!row.last_active || sa > row.last_active) row.last_active = sa;
+      byDriver.set(did, row);
+    }
+    // shiftToDriver unused beyond mapping; keep var to satisfy noUnused.
+    void shiftToDriver;
+
+    const rows = [...byDriver.values()].map((r) => {
+      const raw = r.liters > 0 && r.total_km > 0 ? r.total_km / r.liters : null;
+      const kmpl =
+        raw != null && raw >= ANALYTICS_KMPL_MIN && raw <= ANALYTICS_KMPL_MAX ? raw : null;
+      return {
+        ...r,
+        peso_per_hour: r.hours > 0 ? r.net / r.hours : null,
+        peso_per_km: r.total_km > 0 ? r.net / r.total_km : null,
+        km_per_liter: kmpl,
+      };
+    });
+    return { rows };
+  });
+
+export const getDataQualityReport = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    let q = supabaseAdmin
+      .from("shifts")
+      .select("id, driver_id, started_at, ended_at, starting_odometer_km, ending_odometer_km")
+      .order("started_at", { ascending: false })
+      .limit(2000);
+    if (data.from) q = q.gte("started_at", data.from);
+    if (data.to) q = q.lte("started_at", data.to);
+    const { data: shifts, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const shiftIds = (shifts ?? []).map((s) => s.id);
+    const safeIds = shiftIds.length ? shiftIds : ["00000000-0000-0000-0000-000000000000"];
+    const driverIds = [...new Set((shifts ?? []).map((s) => s.driver_id))];
+    const [tripsRes, fuelRes, feesRes, profRes] = await Promise.all([
+      supabaseAdmin
+        .from("trips")
+        .select("shift_id, distance_km, gross_fare_php")
+        .in("shift_id", safeIds),
+      supabaseAdmin
+        .from("fuel_logs")
+        .select("shift_id, total_cost_php, liters")
+        .in("shift_id", safeIds),
+      supabaseAdmin
+        .from("fee_entries")
+        .select("shift_id, amount_php, category:fee_categories(entry_type)")
+        .in("shift_id", safeIds),
+      supabaseAdmin
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", driverIds.length ? driverIds : ["00000000-0000-0000-0000-000000000000"]),
+    ]);
+    const profMap = new Map((profRes.data ?? []).map((p) => [p.id, p.full_name ?? ""]));
+    const trDist = new Map<string, number>();
+    const trGross = new Map<string, number>();
+    for (const t of tripsRes.data ?? []) {
+      trDist.set(t.shift_id!, (trDist.get(t.shift_id!) ?? 0) + Number(t.distance_km ?? 0));
+      trGross.set(t.shift_id!, (trGross.get(t.shift_id!) ?? 0) + Number(t.gross_fare_php ?? 0));
+    }
+    const fuelCost = new Map<string, number>();
+    const fuelLit = new Map<string, number>();
+    for (const f of fuelRes.data ?? []) {
+      fuelCost.set(f.shift_id!, (fuelCost.get(f.shift_id!) ?? 0) + Number(f.total_cost_php ?? 0));
+      fuelLit.set(f.shift_id!, (fuelLit.get(f.shift_id!) ?? 0) + Number(f.liters ?? 0));
+    }
+    const feeIn = new Map<string, number>();
+    const feeEx = new Map<string, number>();
+    for (const fe of feesRes.data ?? []) {
+      const et = (fe.category as unknown as { entry_type?: string } | null)?.entry_type;
+      if (et === "income")
+        feeIn.set(fe.shift_id!, (feeIn.get(fe.shift_id!) ?? 0) + Number(fe.amount_php));
+      else if (et === "expense")
+        feeEx.set(fe.shift_id!, (feeEx.get(fe.shift_id!) ?? 0) + Number(fe.amount_php));
+    }
+
+    type Flag =
+      | "missing_ending_odometer"
+      | "abandoned_open_shift"
+      | "odometer_trip_mismatch"
+      | "kmpl_out_of_range"
+      | "negative_net"
+      | "fare_per_km_outlier";
+    type Finding = {
+      shift_id: string;
+      driver_id: string;
+      driver_name: string;
+      started_at: string;
+      ended_at: string | null;
+      flag: Flag;
+      detail: string;
+    };
+    const findings: Finding[] = [];
+    const now = Date.now();
+    for (const s of shifts ?? []) {
+      const start = s.starting_odometer_km != null ? Number(s.starting_odometer_km) : null;
+      const end = s.ending_odometer_km != null ? Number(s.ending_odometer_km) : null;
+      const trip = trDist.get(s.id) ?? 0;
+      const fc = fuelCost.get(s.id) ?? 0;
+      const fl = fuelLit.get(s.id) ?? 0;
+      const g = trGross.get(s.id) ?? 0;
+      const fi = feeIn.get(s.id) ?? 0;
+      const fe = feeEx.get(s.id) ?? 0;
+      const net = g + fi - fc - fe;
+      const base = {
+        shift_id: s.id,
+        driver_id: s.driver_id,
+        driver_name: profMap.get(s.driver_id) ?? "",
+        started_at: s.started_at as string,
+        ended_at: (s.ended_at as string | null) ?? null,
+      };
+      if (s.ended_at && end == null) {
+        findings.push({ ...base, flag: "missing_ending_odometer", detail: "Ended shift has no ending odometer reading." });
+      }
+      if (!s.ended_at) {
+        const age = (now - new Date(s.started_at as string).getTime()) / 3600_000;
+        if (age > 24)
+          findings.push({ ...base, flag: "abandoned_open_shift", detail: `Open for ${age.toFixed(1)}h — likely abandoned.` });
+      }
+      if (start != null && end != null) {
+        const delta = end - start;
+        if (delta - trip < 0) {
+          findings.push({
+            ...base,
+            flag: "odometer_trip_mismatch",
+            detail: `Trips sum ${trip.toFixed(1)}km exceeds odometer delta ${delta.toFixed(1)}km.`,
+          });
+        }
+      }
+      const total = start != null && end != null ? Math.max(0, end - start) : trip;
+      if (fl > 0 && total > 0) {
+        const k = total / fl;
+        if (k < ANALYTICS_KMPL_MIN || k > ANALYTICS_KMPL_MAX) {
+          findings.push({
+            ...base,
+            flag: "kmpl_out_of_range",
+            detail: `Computed ${k.toFixed(1)} km/L (outside ${ANALYTICS_KMPL_MIN}–${ANALYTICS_KMPL_MAX}).`,
+          });
+        }
+      }
+      if (s.ended_at && net < 0) {
+        findings.push({ ...base, flag: "negative_net", detail: `Net ₱${net.toFixed(2)} — expenses exceed earnings.` });
+      }
+      if (trip > 0 && g > 0) {
+        const fareKm = g / trip;
+        if (fareKm > 200 || fareKm < 2) {
+          findings.push({
+            ...base,
+            flag: "fare_per_km_outlier",
+            detail: `Fare/km ₱${fareKm.toFixed(2)} looks off (trips ${trip.toFixed(1)}km, fares ₱${g.toFixed(0)}).`,
+          });
+        }
+      }
+    }
+    return { findings };
+  });
