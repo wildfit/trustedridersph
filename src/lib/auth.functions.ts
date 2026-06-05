@@ -1,21 +1,22 @@
 /**
  * Server functions for auth flows that need elevated privileges:
- *  - reading the default driver password from app_settings
  *  - looking up which security questions a user picked (by email)
- *  - verifying hashed security answers
- *  - resetting a user's password back to the default
- *  - seeding the superadmin account on first boot
+ *  - verifying hashed security answers (with rate limit + lockout)
+ *  - issuing a one-time reset token after successful verification
+ *  - letting the user set their OWN new password with that token
+ *  - seeding the superadmin + sample driver accounts
  *
- * All of these use the admin Supabase client and the service-role key —
- * which is why they live in a server function and NEVER in the browser.
+ * Everything runs server-side with the admin Supabase client because
+ * the work crosses user boundaries or rotates passwords.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import crypto from "crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // ---------------------------------------------------------------------------
-// Helper: read a value from app_settings (server-only).
+// Helpers
 // ---------------------------------------------------------------------------
 async function getSetting<T = unknown>(key: string): Promise<T | null> {
   const { data, error } = await supabaseAdmin
@@ -27,21 +28,97 @@ async function getSetting<T = unknown>(key: string): Promise<T | null> {
   return (data?.value as T) ?? null;
 }
 
+/**
+ * Paginate through every page of auth.users until we find the email.
+ * `listUsers` caps at ~1000/page; loop until we get a short page.
+ */
+async function findAuthUserByEmail(email: string) {
+  const target = email.toLowerCase();
+  const perPage = 1000;
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(error.message);
+    const hit = data.users.find((u) => u.email?.toLowerCase() === target);
+    if (hit) return hit;
+    if (data.users.length < perPage) return null;
+  }
+  return null;
+}
+
+/** Fetch every auth user across pages. */
+export async function listAllAuthUsers() {
+  const perPage = 1000;
+  const all: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>["data"]["users"] = [];
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(error.message);
+    all.push(...data.users);
+    if (data.users.length < perPage) break;
+  }
+  return all;
+}
+
+/** Cryptographically-strong temporary password for admin-created accounts. */
+export function generateTempPassword(): string {
+  // 18 url-safe chars ≈ 108 bits entropy.
+  return crypto.randomBytes(14).toString("base64url");
+}
+
 // ---------------------------------------------------------------------------
-// Look up a user's chosen security questions by email.
-// Returns a generic empty list if the user does not exist — never leaks PII.
+// Rate limiting for forgot-password
+// ---------------------------------------------------------------------------
+const LOCKOUT_THRESHOLD = 5;        // failed answer attempts
+const LOCKOUT_WINDOW_MIN = 15;      // minutes
+const LOOKUP_THRESHOLD = 10;        // lookups per email per window
+
+async function isLockedOut(email: string) {
+  const since = new Date(Date.now() - LOCKOUT_WINDOW_MIN * 60_000).toISOString();
+  const { count } = await supabaseAdmin
+    .from("password_reset_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("succeeded", false)
+    .gte("created_at", since)
+    .ilike("email", email);
+  return (count ?? 0) >= LOCKOUT_THRESHOLD;
+}
+
+async function isLookupSpammed(email: string) {
+  const since = new Date(Date.now() - LOCKOUT_WINDOW_MIN * 60_000).toISOString();
+  const { count } = await supabaseAdmin
+    .from("password_reset_attempts")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", since)
+    .ilike("email", email);
+  return (count ?? 0) >= LOOKUP_THRESHOLD;
+}
+
+async function recordAttempt(email: string, userId: string | null, succeeded: boolean) {
+  await supabaseAdmin.from("password_reset_attempts").insert({
+    email: email.toLowerCase(),
+    user_id: userId,
+    succeeded,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Step 1 — look up the user's security questions by email.
+// Always returns the same shape; never reveals whether the email exists.
 // ---------------------------------------------------------------------------
 export const getSecurityQuestionsForEmail = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ email: z.string().email().max(255) }).parse(d))
   .handler(async ({ data }) => {
-    // Find user id by email via admin listUsers (filtered server-side)
-    const { data: list, error: listErr } =
-      await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    if (listErr) throw new Error(listErr.message);
-    const user = list.users.find(
-      (u) => u.email?.toLowerCase() === data.email.toLowerCase(),
-    );
-    if (!user) return { userId: null, questions: [] as { id: string; text: string }[] };
+    const empty = { userId: null as string | null, questions: [] as { id: string; text: string }[], locked: false };
+
+    if (await isLockedOut(data.email)) return { ...empty, locked: true };
+    if (await isLookupSpammed(data.email)) return { ...empty, locked: true };
+
+    const user = await findAuthUserByEmail(data.email);
+    if (!user) {
+      // Record a benign attempt so brute force against unknown emails also
+      // burns the rate limit budget.
+      await recordAttempt(data.email, null, false);
+      return empty;
+    }
 
     const { data: rows, error } = await supabaseAdmin
       .from("user_security_answers")
@@ -51,6 +128,7 @@ export const getSecurityQuestionsForEmail = createServerFn({ method: "POST" })
 
     return {
       userId: user.id,
+      locked: false,
       questions: (rows ?? []).map((r) => {
         const sq = r.security_questions as unknown as
           | { question_text: string }
@@ -63,15 +141,15 @@ export const getSecurityQuestionsForEmail = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
-// Verify the user's security answers. If all correct, reset their password
-// to the configured default and clear first_sign_in_completed so they're
-// forced through the setup wizard again.
+// Step 2 — verify security answers. On success, return a one-time reset
+// token (the user uses it in step 3 to set their own new password).
 // ---------------------------------------------------------------------------
-export const resetPasswordWithAnswers = createServerFn({ method: "POST" })
+export const verifySecurityAnswers = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
         userId: z.string().uuid(),
+        email: z.string().email().max(255),
         answers: z
           .array(
             z.object({
@@ -85,57 +163,97 @@ export const resetPasswordWithAnswers = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data }) => {
-    // Load this user's stored hashes
+    if (await isLockedOut(data.email)) {
+      return { ok: false as const, reason: "locked" as const };
+    }
+
     const { data: stored, error } = await supabaseAdmin
       .from("user_security_answers")
       .select("question_id, answer_hash")
       .eq("user_id", data.userId);
     if (error) throw new Error(error.message);
     if (!stored || stored.length === 0) {
-      return { ok: false, reason: "no-questions" as const };
+      await recordAttempt(data.email, data.userId, false);
+      return { ok: false as const, reason: "wrong" as const };
     }
 
-    // Verify each provided answer against the stored hash via pgcrypto.
     for (const provided of data.answers) {
       const row = stored.find((s) => s.question_id === provided.questionId);
-      if (!row) return { ok: false, reason: "wrong" as const };
+      if (!row) {
+        await recordAttempt(data.email, data.userId, false);
+        return { ok: false as const, reason: "wrong" as const };
+      }
       const { data: ok, error: vErr } = await supabaseAdmin.rpc(
         "verify_security_answer",
         { _answer: provided.answer, _hash: row.answer_hash },
       );
       if (vErr) throw new Error(vErr.message);
-      if (!ok) return { ok: false, reason: "wrong" as const };
+      if (!ok) {
+        await recordAttempt(data.email, data.userId, false);
+        return { ok: false as const, reason: "wrong" as const };
+      }
     }
 
-    // All correct — reset to default password.
-    const defaultPw =
-      (await getSetting<string>("default_driver_password")) ?? "Welcome312";
+    // All correct — mint a one-time token (15 min).
+    const raw = crypto.randomBytes(32).toString("base64url");
+    const tokenHash = crypto.createHash("sha256").update(raw).digest("hex");
+    const expires = new Date(Date.now() + 15 * 60_000).toISOString();
+    const { error: tErr } = await supabaseAdmin.from("password_reset_tokens").insert({
+      user_id: data.userId,
+      token_hash: tokenHash,
+      expires_at: expires,
+    });
+    if (tErr) throw new Error(tErr.message);
+
+    await recordAttempt(data.email, data.userId, true);
+    return { ok: true as const, resetToken: raw };
+  });
+
+// ---------------------------------------------------------------------------
+// Step 3 — set a new password using the one-time token.
+// ---------------------------------------------------------------------------
+export const setPasswordWithResetToken = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        resetToken: z.string().min(20).max(200),
+        newPassword: z.string().min(8).max(72),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const tokenHash = crypto.createHash("sha256").update(data.resetToken).digest("hex");
+    const { data: tok, error } = await supabaseAdmin
+      .from("password_reset_tokens")
+      .select("id, user_id, expires_at, used_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!tok || tok.user_id !== data.userId) {
+      return { ok: false as const, reason: "invalid" as const };
+    }
+    if (tok.used_at) return { ok: false as const, reason: "used" as const };
+    if (new Date(tok.expires_at).getTime() < Date.now()) {
+      return { ok: false as const, reason: "expired" as const };
+    }
 
     const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(
       data.userId,
-      { password: defaultPw },
+      { password: data.newPassword },
     );
     if (updErr) throw new Error(updErr.message);
 
-    // Force them through first-sign-in wizard again.
     await supabaseAdmin
-      .from("profiles")
-      .update({ first_sign_in_completed: false })
-      .eq("id", data.userId);
+      .from("password_reset_tokens")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", tok.id);
 
     return { ok: true as const };
   });
 
 // ---------------------------------------------------------------------------
-// Seed the Superadmin account on first run.
-// Reads SUPERADMIN_DEFAULT_PASSWORD from env (set as a project secret).
-// Idempotent — safe to call multiple times.
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 // Seed the Superadmin account.
-// Requires the caller to supply the SUPERADMIN_DEFAULT_PASSWORD secret value
-// as a bootstrap token, so this endpoint cannot be invoked anonymously by
-// internet callers. Idempotent.
 // ---------------------------------------------------------------------------
 export const ensureSuperadminSeeded = createServerFn({ method: "POST" })
   .inputValidator((d) =>
@@ -143,9 +261,7 @@ export const ensureSuperadminSeeded = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const password = process.env.SUPERADMIN_DEFAULT_PASSWORD;
-    if (!password) {
-      return { ok: false as const, reason: "missing-secret" as const };
-    }
+    if (!password) return { ok: false as const, reason: "missing-secret" as const };
     if (data.bootstrapToken !== password) {
       return { ok: false as const, reason: "forbidden" as const };
     }
@@ -155,13 +271,7 @@ export const ensureSuperadminSeeded = createServerFn({ method: "POST" })
     const username =
       (await getSetting<string>("superadmin_username")) ?? "Admin";
 
-    const { data: list } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 200,
-    });
-    const existing = list?.users.find(
-      (u) => u.email?.toLowerCase() === email.toLowerCase(),
-    );
+    const existing = await findAuthUserByEmail(email);
 
     let userId: string;
     if (existing) {
@@ -188,19 +298,15 @@ export const ensureSuperadminSeeded = createServerFn({ method: "POST" })
         { onConflict: "id" },
       );
 
-    // Do not return the user id — callers don't need it and exposing it
-    // leaks the admin account identifier.
     return { ok: true as const };
   });
 
 // ---------------------------------------------------------------------------
-// Seed two sample driver accounts. Admin/superadmin only; never returns the
-// plaintext password in the response.
+// Seed sample drivers. Admin/superadmin only. Issues a unique temp password.
 // ---------------------------------------------------------------------------
 export const seedSampleDrivers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    // Authorize: caller must be admin/superadmin.
     const { data: roleRows, error: roleErr } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -211,39 +317,28 @@ export const seedSampleDrivers = createServerFn({ method: "POST" })
       throw new Error("Forbidden");
     }
 
-    const password =
-      (await getSetting<string>("default_driver_password")) ?? "Welcome312";
-
     const samples = [
       { email: "driver1@trustedriders.ph", full_name: "Juan dela Cruz" },
       { email: "driver2@trustedriders.ph", full_name: "Maria Santos" },
     ];
 
-    const { data: list, error: listErr } =
-      await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    if (listErr) throw new Error(listErr.message);
-
-    const results: { email: string; created: boolean }[] = [];
+    const results: { email: string; created: boolean; password?: string }[] = [];
     for (const s of samples) {
-      const existing = list.users.find(
-        (u) => u.email?.toLowerCase() === s.email.toLowerCase(),
-      );
+      const existing = await findAuthUserByEmail(s.email);
       if (existing) {
         results.push({ email: s.email, created: false });
         continue;
       }
-      const { data: _created, error } = await supabaseAdmin.auth.admin.createUser({
+      const tempPw = generateTempPassword();
+      const { error } = await supabaseAdmin.auth.admin.createUser({
         email: s.email,
-        password,
+        password: tempPw,
         email_confirm: true,
         user_metadata: { full_name: s.full_name },
       });
       if (error) throw new Error(error.message);
-      results.push({ email: s.email, created: true });
+      results.push({ email: s.email, created: true, password: tempPw });
     }
 
-    // Do NOT return the plaintext default password. Admins can retrieve/rotate
-    // it through dedicated admin settings endpoints.
     return { ok: true as const, drivers: results };
   });
-
