@@ -46,9 +46,11 @@ async function findAuthUserByEmail(email: string) {
 }
 
 /** Fetch every auth user across pages. */
-export async function listAllAuthUsers() {
+type AuthUser = Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>["data"]["users"][number];
+
+export async function listAllAuthUsers(): Promise<AuthUser[]> {
   const perPage = 1000;
-  const all: Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>["data"]["users"] = [];
+  const all: AuthUser[] = [];
   for (let page = 1; page <= 50; page++) {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
     if (error) throw new Error(error.message);
@@ -57,6 +59,7 @@ export async function listAllAuthUsers() {
   }
   return all;
 }
+
 
 /** Cryptographically-strong temporary password for admin-created accounts. */
 export function generateTempPassword(): string {
