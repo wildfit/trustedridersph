@@ -6,6 +6,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { generateTempPassword, listAllAuthUsers } from "@/lib/auth.functions";
+
 
 // ---------- helpers ----------
 async function assertAdmin(userId: string) {
@@ -81,12 +83,10 @@ export const listDrivers = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (pErr) throw new Error(pErr.message);
 
-    // emails via auth admin
-    const { data: list } = await supabaseAdmin.auth.admin.listUsers({
-      page: 1,
-      perPage: 500,
-    });
-    const emailById = new Map(list.users.map((u) => [u.id, u.email ?? ""]));
+    // emails via auth admin — paginate ALL pages.
+    const users = await listAllAuthUsers();
+    const emailById = new Map(users.map((u) => [u.id, u.email ?? ""]));
+
 
     return (profiles ?? []).map((p) => ({
       ...p,
@@ -157,12 +157,10 @@ export const resetDriverPassword = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ driverId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    const { data: setting } = await supabaseAdmin
-      .from("app_settings").select("value").eq("key", "default_driver_password").maybeSingle();
-    const defaultPw =
-      (setting?.value as string) || process.env.SUPERADMIN_DEFAULT_PASSWORD || "Welcome312";
+    // Generate a unique random temp password per reset — no shared default.
+    const tempPw = generateTempPassword();
     const { error } = await supabaseAdmin.auth.admin.updateUserById(data.driverId, {
-      password: defaultPw,
+      password: tempPw,
     });
     if (error) throw new Error(error.message);
     await supabaseAdmin
@@ -171,8 +169,9 @@ export const resetDriverPassword = createServerFn({ method: "POST" })
       actorId: context.userId, entityType: "profile", entityId: data.driverId,
       action: "reset_password",
     });
-    return { ok: true, password: defaultPw };
+    return { ok: true, password: tempPw };
   });
+
 
 export const createDriver = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -192,18 +191,17 @@ export const createDriver = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
 
-    const { data: setting } = await supabaseAdmin
-      .from("app_settings").select("value").eq("key", "default_driver_password").maybeSingle();
-    const defaultPw =
-      data.password || (setting?.value as string) || process.env.SUPERADMIN_DEFAULT_PASSWORD || "Welcome312";
+    // Unique random temp password per driver (admin can also pass one explicitly).
+    const tempPw = data.password || generateTempPassword();
 
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
-      password: defaultPw,
+      password: tempPw,
       email_confirm: true,
       user_metadata: { full_name: data.full_name, phone: data.phone ?? undefined },
     });
     if (error) throw new Error(error.message);
+
     const userId = created.user!.id;
 
     // handle_new_user trigger seeds default 'driver' role + profile row.
