@@ -229,7 +229,7 @@ export const createDriver = createServerFn({ method: "POST" })
       actorId: context.userId, entityType: "profile", entityId: userId,
       action: "create_driver", after: { email: data.email, full_name: data.full_name },
     });
-    return { ok: true, driverId: userId, password: defaultPw };
+    return { ok: true, driverId: userId, password: tempPw };
   });
 
 export const updateDriverProfile = createServerFn({ method: "POST" })
