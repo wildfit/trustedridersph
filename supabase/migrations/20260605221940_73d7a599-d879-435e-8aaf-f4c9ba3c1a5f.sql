@@ -1,0 +1,1 @@
+DELETE FROM public.app_settings WHERE key = 'default_driver_password';
