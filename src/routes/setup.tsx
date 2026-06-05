@@ -7,10 +7,10 @@ import { ChevronLeft, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import {
-  changePassword,
   saveSecurityAnswers,
   completeBikeSetup,
 } from "@/lib/wizard.functions";
+
 
 export const Route = createFileRoute("/setup")({
   component: SetupWizard,
@@ -37,8 +37,7 @@ function SetupWizard() {
 function Wizard({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState<Step>("password");
 
-  // Step 1 — password
-  const changePw = useServerFn(changePassword);
+  // Step 1 — password (client-side, keeps session alive)
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [pwError, setPwError] = useState<string | null>(null);
@@ -51,7 +50,12 @@ function Wizard({ onDone }: { onDone: () => void }) {
     if (pw !== pw2) return setPwError("Passwords don't match.");
     setPwBusy(true);
     try {
-      await changePw({ data: { newPassword: pw } });
+      // Update via the user's own client session — this returns refreshed
+      // tokens and keeps the user signed in (admin updateUserById would
+      // invalidate the current refresh token and bounce them to /login,
+      // making the wizard run twice).
+      const { error } = await supabase.auth.updateUser({ password: pw });
+      if (error) throw error;
       setStep("pick-questions");
     } catch (e) {
       setPwError((e as Error).message);
@@ -59,6 +63,7 @@ function Wizard({ onDone }: { onDone: () => void }) {
       setPwBusy(false);
     }
   }
+
 
   // Steps 2–3 — questions + answers
   const questionsQuery = useQuery({
