@@ -1,0 +1,1 @@
+UPDATE public.fee_categories SET entry_type = 'expense' WHERE name IN ('Toll','Parking','Food','Phone load');
