@@ -1,31 +1,20 @@
 /**
  * Server functions for the first-sign-in wizard.
- * All run as the authenticated driver via requireSupabaseAuth — RLS applies.
- * Password changes need supabaseAdmin (the user's Supabase client cannot
- * call updateUser without re-auth on every refresh), so those go through
- * the admin client but are scoped to the caller's own auth.uid().
+ *
+ * Password changes are NOT in this file anymore — they happen client-side
+ * via `supabase.auth.updateUser({ password })` so the user's session
+ * remains valid (admin updateUserById would rotate the refresh token and
+ * sign the user out mid-wizard, sending them through setup twice).
+ *
+ * The other steps run as the authenticated driver via requireSupabaseAuth.
+ * `completeBikeSetup` writes `first_sign_in_completed` with the service-role
+ * admin client because drivers no longer have direct write access to that
+ * column (see profiles_guard_protected_columns trigger).
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-// ---------------------------------------------------------------------------
-// Step 1 — change password.
-// ---------------------------------------------------------------------------
-export const changePassword = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ newPassword: z.string().min(6).max(72) }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      password: data.newPassword,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true as const };
-  });
 
 // ---------------------------------------------------------------------------
 // Step 2 — save security questions + answers (answers stored hashed).
@@ -50,10 +39,8 @@ export const saveSecurityAnswers = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
 
-    // Clear previous answers (in case the user is re-running setup).
     await supabaseAdmin.from("user_security_answers").delete().eq("user_id", userId);
 
-    // Hash each answer via pgcrypto and insert.
     const rows: { user_id: string; question_id: string; answer_hash: string }[] = [];
     for (const a of data.answers) {
       const { data: hash, error } = await supabaseAdmin.rpc(
@@ -72,7 +59,9 @@ export const saveSecurityAnswers = createServerFn({ method: "POST" })
   });
 
 // ---------------------------------------------------------------------------
-// Step 3 — bike details, and mark wizard complete.
+// Step 3 — bike details, mark wizard complete.
+// Uses supabaseAdmin so that first_sign_in_completed (a protected column)
+// is writable even though the driver's own client can't update it.
 // ---------------------------------------------------------------------------
 export const completeBikeSetup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -86,8 +75,8 @@ export const completeBikeSetup = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { userId, supabase } = context;
-    const { error } = await supabase
+    const { userId } = context;
+    const { error } = await supabaseAdmin
       .from("profiles")
       .update({
         fuel_tank_liters: data.fuelTankLiters,

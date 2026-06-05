@@ -43,8 +43,9 @@ function ExportPage() {
       <h1 className="text-2xl font-bold">Export</h1>
       <p className="text-sm text-muted-foreground">
         Export driver shift records with: date, start mileage, end mileage, distance, fuel cost,
-        refuel liters, base fares, fees, and net earnings.
+        refuel liters, base fares, fees, other expenses, and net earnings.
       </p>
+
       <div className="bg-card border border-border rounded-lg p-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>

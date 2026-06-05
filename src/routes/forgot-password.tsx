@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, Check } from "lucide-react";
 import {
   getSecurityQuestionsForEmail,
-  resetPasswordWithAnswers,
+  verifySecurityAnswers,
+  setPasswordWithResetToken,
 } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/forgot-password")({
@@ -14,13 +15,17 @@ export const Route = createFileRoute("/forgot-password")({
 function ForgotPasswordPage() {
   const navigate = useNavigate();
   const lookup = useServerFn(getSecurityQuestionsForEmail);
-  const reset = useServerFn(resetPasswordWithAnswers);
+  const verify = useServerFn(verifySecurityAnswers);
+  const setPw = useServerFn(setPasswordWithResetToken);
 
-  const [step, setStep] = useState<"email" | "answers" | "done">("email");
+  const [step, setStep] = useState<"email" | "answers" | "new-password" | "done">("email");
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [resetToken, setResetToken] = useState<string | null>(null);
   const [questions, setQuestions] = useState<{ id: string; text: string }[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [pw, setPw1] = useState("");
+  const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +35,10 @@ function ForgotPasswordPage() {
     setBusy(true);
     try {
       const res = await lookup({ data: { email: email.trim() } });
+      if (res.locked) {
+        setError("Too many attempts. Please wait 15 minutes and try again.");
+        return;
+      }
       if (!res.userId || res.questions.length === 0) {
         setError(
           "We can't reset this account automatically. Please ask your admin for help.",
@@ -52,9 +61,10 @@ function ForgotPasswordPage() {
     setError(null);
     setBusy(true);
     try {
-      const res = await reset({
+      const res = await verify({
         data: {
           userId,
+          email: email.trim(),
           answers: questions.map((q) => ({
             questionId: q.id,
             answer: answers[q.id] ?? "",
@@ -62,7 +72,39 @@ function ForgotPasswordPage() {
         },
       });
       if (!res.ok) {
-        setError("Some answers don't match. Please try again.");
+        if (res.reason === "locked") {
+          setError("Too many attempts. Please wait 15 minutes and try again.");
+        } else {
+          setError("Some answers don't match. Please try again.");
+        }
+        return;
+      }
+      setResetToken(res.resetToken);
+      setStep("new-password");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitNewPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!userId || !resetToken) return;
+    setError(null);
+    if (pw.length < 8) return setError("Use at least 8 characters.");
+    if (pw !== pw2) return setError("Passwords don't match.");
+    setBusy(true);
+    try {
+      const res = await setPw({
+        data: { userId, resetToken, newPassword: pw },
+      });
+      if (!res.ok) {
+        setError(
+          res.reason === "expired"
+            ? "Your reset link has expired. Start over."
+            : "We couldn't set your password. Start over.",
+        );
         return;
       }
       setStep("done");
@@ -132,7 +174,39 @@ function ForgotPasswordPage() {
             ))}
             {error && <p className="text-destructive font-medium">{error}</p>}
             <button type="submit" disabled={busy} className="btn-primary mt-2">
-              {busy ? "Checking..." : "Reset my password"}
+              {busy ? "Checking..." : "Continue"}
+            </button>
+          </form>
+        )}
+
+        {step === "new-password" && (
+          <form onSubmit={submitNewPassword} className="flex flex-col gap-4">
+            <p className="text-muted-foreground">
+              Choose a new password. At least 8 characters.
+            </p>
+            <label className="flex flex-col gap-2">
+              <span className="font-semibold">New password</span>
+              <input
+                type="password"
+                className="field"
+                value={pw}
+                onChange={(e) => setPw1(e.target.value)}
+                autoComplete="new-password"
+              />
+            </label>
+            <label className="flex flex-col gap-2">
+              <span className="font-semibold">Confirm password</span>
+              <input
+                type="password"
+                className="field"
+                value={pw2}
+                onChange={(e) => setPw2(e.target.value)}
+                autoComplete="new-password"
+              />
+            </label>
+            {error && <p className="text-destructive font-medium">{error}</p>}
+            <button type="submit" disabled={busy} className="btn-primary mt-2">
+              {busy ? "Saving..." : "Set new password"}
             </button>
           </form>
         )}
@@ -144,9 +218,9 @@ function ForgotPasswordPage() {
               <Check className="size-12" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">Password reset!</h2>
+              <h2 className="text-2xl font-bold">Password updated!</h2>
               <p className="mt-2 text-muted-foreground">
-                Your password is now the default. Sign in to set a new one.
+                Sign in with your new password.
               </p>
             </div>
             <button
