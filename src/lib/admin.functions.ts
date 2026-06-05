@@ -714,11 +714,11 @@ export const exportRecords = createServerFn({ method: "GET" })
     ]);
     const driverName = new Map((profs.data ?? []).map((p) => [p.id, p.full_name ?? ""]));
 
-    const agg = new Map<string, { distance: number; baseFares: number; fuelCost: number; refuelLiters: number; feeIncome: number; feeExpense: number }>();
-    for (const id of ids) agg.set(id, { distance: 0, baseFares: 0, fuelCost: 0, refuelLiters: 0, feeIncome: 0, feeExpense: 0 });
+    const agg = new Map<string, { tripDistance: number; baseFares: number; fuelCost: number; refuelLiters: number; feeIncome: number; feeExpense: number }>();
+    for (const id of ids) agg.set(id, { tripDistance: 0, baseFares: 0, fuelCost: 0, refuelLiters: 0, feeIncome: 0, feeExpense: 0 });
     for (const t of trips.data ?? []) {
       const r = agg.get(t.shift_id!)!;
-      r.distance += Number(t.distance_km ?? 0);
+      r.tripDistance += Number(t.distance_km ?? 0);
       r.baseFares += Number(t.gross_fare_php ?? 0);
     }
     for (const f of fuel.data ?? []) {
@@ -729,26 +729,36 @@ export const exportRecords = createServerFn({ method: "GET" })
     for (const fe of fees.data ?? []) {
       const r = agg.get(fe.shift_id!)!;
       const t = (fe.category as unknown as { entry_type?: string } | null)?.entry_type;
+      // Uncategorized entries are skipped (neither income nor expense).
       if (t === "expense") r.feeExpense += Number(fe.amount_php);
-      else r.feeIncome += Number(fe.amount_php);
+      else if (t === "income") r.feeIncome += Number(fe.amount_php);
     }
 
     const rows = shifts.map((s) => {
       const a = agg.get(s.id)!;
       const gross = a.baseFares + a.feeIncome;
       const expenses = a.fuelCost + a.feeExpense;
+      // Canonical distance: odometer delta if both readings, else trip sum.
+      const start = s.starting_odometer_km != null ? Number(s.starting_odometer_km) : null;
+      const end = s.ending_odometer_km != null ? Number(s.ending_odometer_km) : null;
+      const totalDistance =
+        start != null && end != null ? Math.max(0, end - start) : a.tripDistance;
       return {
         date: (s.started_at as string).slice(0, 10),
         driver: driverName.get(s.driver_id) ?? "",
         start_mileage_km: Number(s.starting_odometer_km ?? 0),
         end_mileage_km: Number(s.ending_odometer_km ?? 0),
-        distance_km: Number(a.distance.toFixed(2)),
+        distance_km: Number(totalDistance.toFixed(2)),
         fuel_cost_php: Number(a.fuelCost.toFixed(2)),
         refuel_liters: Number(a.refuelLiters.toFixed(2)),
         base_fares_php: Number(a.baseFares.toFixed(2)),
         fees_php: Number(a.feeIncome.toFixed(2)),
+        // Explicit expense-fees column so columns reconcile:
+        //   base_fares + fees − fuel − other_expenses = net
+        other_expenses_php: Number(a.feeExpense.toFixed(2)),
         net_earnings_php: Number((gross - expenses).toFixed(2)),
       };
     });
     return { rows };
   });
+
