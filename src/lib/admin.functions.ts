@@ -1057,11 +1057,11 @@ export const getDataQualityReport = createServerFn({ method: "GET" })
       }
       if (trip > 0 && g > 0) {
         const fareKm = g / trip;
-        if (fareKm > 200 || fareKm < 2) {
+        if (fareKm > FAREKM_MAX || fareKm < FAREKM_MIN) {
           findings.push({
             ...base,
             flag: "fare_per_km_outlier",
-            detail: `Fare/km ₱${fareKm.toFixed(2)} looks off (trips ${trip.toFixed(1)}km, fares ₱${g.toFixed(0)}).`,
+            detail: `Fare/km ₱${fareKm.toFixed(2)} looks off (outside ₱${FAREKM_MIN}–₱${FAREKM_MAX}; trips ${trip.toFixed(1)}km, fares ₱${g.toFixed(0)}).`,
           });
         }
       }
