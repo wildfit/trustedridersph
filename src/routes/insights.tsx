@@ -93,7 +93,22 @@ function InsightsPage() {
               label="km / L"
               value={d.metrics.km_per_liter != null ? d.metrics.km_per_liter.toFixed(1) : "—"}
             />
+            <Kpi
+              label="Fuel cost / km"
+              value={d.metrics.fuel_cost_per_km != null ? php(d.metrics.fuel_cost_per_km) : "—"}
+            />
+            <Kpi
+              label="Time on trips"
+              value={
+                d.metrics.time_utilization != null
+                  ? `${(d.metrics.time_utilization * 100).toFixed(0)}%`
+                  : "—"
+              }
+            />
           </div>
+
+          <Heatmap data={heat.data} loading={heat.isLoading} />
+
 
           <section className="bg-card border border-border rounded-lg p-4">
             <div className="flex items-start gap-2">
