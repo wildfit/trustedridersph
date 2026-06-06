@@ -570,7 +570,7 @@ function AuditLogTab() {
                     </td>
                   </tr>
                   {isOpen && (
-                    <tr key={r.id + "-diff"} className="bg-muted/20">
+                    <tr className="bg-muted/20">
                       <td colSpan={6} className="px-3 py-3">
                         <div className="grid md:grid-cols-2 gap-3 text-xs">
                           <div>
