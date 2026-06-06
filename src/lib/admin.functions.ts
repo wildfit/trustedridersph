@@ -907,8 +907,6 @@ export const getFleetLeaderboard = createServerFn({ method: "GET" })
       if (!row.last_active || sa > row.last_active) row.last_active = sa;
       byDriver.set(did, row);
     }
-    // shiftToDriver unused beyond mapping; keep var to satisfy noUnused.
-    void shiftToDriver;
 
     const rows = [...byDriver.values()].map((r) => {
       const raw = r.liters > 0 && r.total_km > 0 ? r.total_km / r.liters : null;
