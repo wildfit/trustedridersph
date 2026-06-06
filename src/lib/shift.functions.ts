@@ -535,6 +535,7 @@ export const getMyPerformance = createServerFn({ method: "GET" })
       feeExpense = 0;
     let totalKm = 0,
       paidKm = 0,
+      paidKmKnown = 0, // paid_km from known-odometer shifts only (for split bar)
       betweenKm = 0,
       totalKmKnown = 0; // sum of total_km only when odometer-derived
     let betweenKnownShifts = 0,
@@ -552,8 +553,9 @@ export const getMyPerformance = createServerFn({ method: "GET" })
       paidKm += a.tripDistance;
       if (odoTotal != null) {
         totalKmKnown += odoTotal;
-        const between = Math.max(0, odoTotal - a.tripDistance);
-        betweenKm += between;
+        // Clamp paid to ≤ odometer so split bar reconciles.
+        paidKmKnown += Math.min(a.tripDistance, odoTotal);
+        betweenKm += Math.max(0, odoTotal - a.tripDistance);
         betweenKnownShifts += 1;
       } else {
         betweenUnknownShifts += 1;
