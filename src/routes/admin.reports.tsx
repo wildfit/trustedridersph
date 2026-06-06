@@ -2,16 +2,48 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getFleetLeaderboard, getDataQualityReport } from "@/lib/admin.functions";
+import {
+  getFleetLeaderboard,
+  getDataQualityReport,
+  getFleetEngagement,
+  getFleetServiceFuel,
+  getAuditLog,
+  getAccessReport,
+} from "@/lib/admin.functions";
 import { php, km } from "@/lib/format";
-import { ArrowUpDown, AlertTriangle } from "lucide-react";
+import {
+  ArrowUpDown,
+  AlertTriangle,
+  Users,
+  Fuel,
+  ScrollText,
+  ShieldCheck,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 type RangeKey = "7d" | "30d" | "90d" | "all";
+type TabKey =
+  | "leaderboard"
+  | "engagement"
+  | "service_fuel"
+  | "quality"
+  | "audit"
+  | "access";
 
 export const Route = createFileRoute("/admin/reports")({ component: AdminReports });
 
 function AdminReports() {
-  const [tab, setTab] = useState<"leaderboard" | "quality">("leaderboard");
+  const [tab, setTab] = useState<TabKey>("leaderboard");
   const [range, setRange] = useState<RangeKey>("30d");
 
   const { fromIso, toIso } = useMemo(() => {
@@ -22,49 +54,62 @@ function AdminReports() {
     return { fromIso: from.toISOString(), toIso: undefined };
   }, [range]);
 
+  const showRange = tab !== "access" && tab !== "audit";
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Reports</h1>
-        <div className="flex gap-1 bg-card border border-border rounded-md p-1">
-          {(["7d", "30d", "90d", "all"] as RangeKey[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={`px-3 py-1.5 text-sm rounded font-medium ${range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-            >
-              {r === "all" ? "All time" : `Last ${r}`}
-            </button>
-          ))}
-        </div>
+        {showRange && (
+          <div className="flex gap-1 bg-card border border-border rounded-md p-1">
+            {(["7d", "30d", "90d", "all"] as RangeKey[]).map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={`px-3 py-1.5 text-sm rounded font-medium ${range === r ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              >
+                {r === "all" ? "All time" : `Last ${r}`}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="flex gap-1 border-b border-border">
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
         {(
           [
-            { v: "leaderboard", l: "Fleet leaderboard" },
-            { v: "quality", l: "Data quality" },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.v}
-            onClick={() => setTab(t.v)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px ${tab === t.v ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
-          >
-            {t.l}
-          </button>
-        ))}
+            { v: "leaderboard", l: "Leaderboard", I: ArrowUpDown },
+            { v: "engagement", l: "Engagement", I: Users },
+            { v: "service_fuel", l: "Service & Fuel", I: Fuel },
+            { v: "quality", l: "Data quality", I: AlertTriangle },
+            { v: "audit", l: "Audit log", I: ScrollText },
+            { v: "access", l: "Access", I: ShieldCheck },
+          ] as { v: TabKey; l: string; I: typeof Users }[]
+        ).map((t) => {
+          const Ico = t.I;
+          return (
+            <button
+              key={t.v}
+              onClick={() => setTab(t.v)}
+              className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px inline-flex items-center gap-2 whitespace-nowrap ${tab === t.v ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
+            >
+              <Ico className="size-4" /> {t.l}
+            </button>
+          );
+        })}
       </div>
 
-      {tab === "leaderboard" ? (
-        <Leaderboard fromIso={fromIso} toIso={toIso} />
-      ) : (
-        <DataQuality fromIso={fromIso} toIso={toIso} />
-      )}
+      {tab === "leaderboard" && <Leaderboard fromIso={fromIso} toIso={toIso} />}
+      {tab === "engagement" && <Engagement fromIso={fromIso} toIso={toIso} />}
+      {tab === "service_fuel" && <ServiceFuel fromIso={fromIso} toIso={toIso} />}
+      {tab === "quality" && <DataQuality fromIso={fromIso} toIso={toIso} />}
+      {tab === "audit" && <AuditLogTab />}
+      {tab === "access" && <AccessTab />}
     </div>
   );
 }
 
+/* ----------------------------- Leaderboard ----------------------------- */
 type SortKey =
   | "driver_name"
   | "net"
@@ -167,6 +212,201 @@ function Leaderboard({ fromIso, toIso }: { fromIso?: string; toIso?: string }) {
   );
 }
 
+/* ----------------------------- Engagement ----------------------------- */
+const STATUS_BADGE: Record<string, string> = {
+  active_7d: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  active_30d: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  dormant: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  never_rode: "bg-muted text-muted-foreground",
+};
+const STATUS_LABEL: Record<string, string> = {
+  active_7d: "Active (7d)",
+  active_30d: "Active (30d)",
+  dormant: "Dormant",
+  never_rode: "Never rode",
+};
+
+function Engagement({ fromIso, toIso }: { fromIso?: string; toIso?: string }) {
+  const fetchFn = useServerFn(getFleetEngagement);
+  const q = useQuery({
+    queryKey: ["fleet-engagement", fromIso, toIso],
+    queryFn: () => fetchFn({ data: { from: fromIso, to: toIso } }),
+  });
+  if (q.isLoading) return <div className="text-muted-foreground">Loading…</div>;
+  const d = q.data;
+  if (!d) return null;
+
+  const f = d.funnel;
+  const steps = [
+    { label: "Created", value: f.created },
+    { label: "Signed in", value: f.signed_in },
+    { label: "First shift", value: f.first_shift },
+    { label: "First trip", value: f.first_trip },
+  ];
+  const max = Math.max(1, f.created);
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-card border border-border rounded-lg p-4">
+        <h2 className="font-semibold mb-3">Driver activation funnel</h2>
+        <div className="space-y-2">
+          {steps.map((s, i) => {
+            const prev = i === 0 ? null : steps[i - 1].value;
+            const pct = (s.value / max) * 100;
+            const stepPct = prev != null && prev > 0 ? (s.value / prev) * 100 : null;
+            return (
+              <div key={s.label}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="font-medium">{s.label}</span>
+                  <span className="text-muted-foreground">
+                    {s.value} {stepPct != null && `(${stepPct.toFixed(0)}% of prev)`}
+                  </span>
+                </div>
+                <div className="h-2 bg-muted rounded overflow-hidden">
+                  <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-card border border-border rounded-lg overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-muted-foreground border-b border-border">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-semibold">Driver</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold">Status</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold">Shifts in range</th>
+              <th className="px-3 py-2 text-right text-xs font-semibold">Days since active</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold">Last active</th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.perDriver.map((r) => (
+              <tr key={r.driver_id} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 font-medium">{r.driver_name}</td>
+                <td className="px-3 py-2">
+                  <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${STATUS_BADGE[r.status]}`}>
+                    {STATUS_LABEL[r.status]}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-right">{r.shifts_in_range}</td>
+                <td className="px-3 py-2 text-right">
+                  {r.days_since_active == null ? "—" : r.days_since_active}
+                </td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">
+                  {r.last_active ? new Date(r.last_active).toLocaleDateString() : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- Service & Fuel ----------------------------- */
+function ServiceFuel({ fromIso, toIso }: { fromIso?: string; toIso?: string }) {
+  const fetchFn = useServerFn(getFleetServiceFuel);
+  const q = useQuery({
+    queryKey: ["fleet-service-fuel", fromIso, toIso],
+    queryFn: () => fetchFn({ data: { from: fromIso, to: toIso } }),
+  });
+  if (q.isLoading) return <div className="text-muted-foreground">Loading…</div>;
+  const d = q.data;
+  if (!d) return null;
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <section className="bg-card border border-border rounded-lg p-4 md:col-span-2">
+        <h2 className="font-semibold mb-3">Service mix (gross fares)</h2>
+        {d.byService.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">No trips in range.</div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={d.byService}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="service_type" className="text-xs" />
+                <YAxis className="text-xs" />
+                <Tooltip />
+                <Bar dataKey="gross" name="Gross ₱" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+              {d.byService.map((s) => (
+                <div key={s.service_type} className="bg-muted/40 rounded p-2">
+                  <div className="font-semibold capitalize">{s.service_type}</div>
+                  <div className="text-muted-foreground">{s.trips} trips · {s.share_pct.toFixed(0)}%</div>
+                  <div className="text-muted-foreground">
+                    {s.peso_per_hour != null ? `${php(s.peso_per_hour)}/h` : "—"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="bg-card border border-border rounded-lg p-4 md:col-span-2">
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="font-semibold">Fuel spend</h2>
+          <div className="text-sm text-muted-foreground">
+            {php(d.fuel.total_spend)} · {d.fuel.total_liters.toFixed(1)} L
+          </div>
+        </div>
+        {d.fuel.byDay.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">No fuel logs in range.</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={d.fuel.byDay}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="date" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="spend"
+                stroke="hsl(var(--primary))"
+                strokeWidth={2}
+                dot={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </section>
+
+      <section className="bg-card border border-border rounded-lg p-4 md:col-span-2">
+        <h2 className="font-semibold mb-3">Efficiency outliers (km/L outside 10–100)</h2>
+        {d.efficiencyOutliers.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">
+            ✓ No outliers in range.
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/30 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-semibold">Driver</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold">km/L</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.efficiencyOutliers.map((o) => (
+                <tr key={o.driver_id} className="border-t border-border">
+                  <td className="px-3 py-2">{o.driver_name}</td>
+                  <td className="px-3 py-2 text-right">{o.km_per_liter.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/* ----------------------------- Data Quality ----------------------------- */
 const FLAG_LABEL: Record<string, string> = {
   missing_ending_odometer: "Missing ending odometer",
   abandoned_open_shift: "Open shift > 24h (abandoned?)",
@@ -192,7 +432,6 @@ function DataQuality({ fromIso, toIso }: { fromIso?: string; toIso?: string }) {
       </div>
     );
 
-  // group by flag
   const grouped = new Map<string, typeof findings>();
   for (const f of findings) {
     const arr = grouped.get(f.flag) ?? [];
@@ -241,6 +480,245 @@ function DataQuality({ fromIso, toIso }: { fromIso?: string; toIso?: string }) {
           </table>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ----------------------------- Audit Log ----------------------------- */
+function AuditLogTab() {
+  const fetchFn = useServerFn(getAuditLog);
+  const [entityType, setEntityType] = useState<string>("");
+  const [action, setAction] = useState<string>("");
+  const q = useQuery({
+    queryKey: ["audit-log", entityType, action],
+    queryFn: () =>
+      fetchFn({
+        data: {
+          entityType: entityType || undefined,
+          action: action || undefined,
+          limit: 200,
+        },
+      }),
+  });
+  const [openRow, setOpenRow] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 flex-wrap">
+        <input
+          value={entityType}
+          onChange={(e) => setEntityType(e.target.value)}
+          placeholder="Entity type (e.g. shift, profile)"
+          className="px-3 py-1.5 text-sm bg-card border border-border rounded"
+        />
+        <input
+          value={action}
+          onChange={(e) => setAction(e.target.value)}
+          placeholder="Action (e.g. update, delete)"
+          className="px-3 py-1.5 text-sm bg-card border border-border rounded"
+        />
+      </div>
+      {q.isLoading && <div className="text-muted-foreground">Loading…</div>}
+      <div className="bg-card border border-border rounded-lg overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-muted-foreground border-b border-border">
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-semibold">When</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold">Actor</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold">Action</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold">Entity</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold">Entity ID</th>
+              <th className="px-3 py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {(q.data?.rows ?? []).map((r) => {
+              const isOpen = openRow === r.id;
+              return (
+                <>
+                  <tr key={r.id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(r.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">{r.actor_name || r.actor_id.slice(0, 8)}</td>
+                    <td className="px-3 py-2">
+                      <span className="px-2 py-0.5 rounded bg-muted text-xs font-medium">
+                        {r.action}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs">{r.entity_type}</td>
+                    <td className="px-3 py-2 text-xs font-mono text-muted-foreground">
+                      {r.entity_type === "shift" ? (
+                        <Link
+                          to="/admin/records"
+                          search={{ shiftId: r.entity_id } as never}
+                          className="text-primary hover:underline"
+                        >
+                          {r.entity_id.slice(0, 8)}…
+                        </Link>
+                      ) : (
+                        `${r.entity_id.slice(0, 8)}…`
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        onClick={() => setOpenRow(isOpen ? null : r.id)}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        {isOpen ? "Hide" : "Diff"}
+                      </button>
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr key={r.id + "-diff"} className="bg-muted/20">
+                      <td colSpan={6} className="px-3 py-3">
+                        <div className="grid md:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <div className="font-semibold mb-1 text-muted-foreground">Before</div>
+                            <pre className="bg-background border border-border rounded p-2 overflow-x-auto max-h-64">
+                              {JSON.stringify(r.before, null, 2)}
+                            </pre>
+                          </div>
+                          <div>
+                            <div className="font-semibold mb-1 text-muted-foreground">After</div>
+                            <pre className="bg-background border border-border rounded p-2 overflow-x-auto max-h-64">
+                              {JSON.stringify(r.after, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              );
+            })}
+            {q.data && q.data.rows.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-3 py-6 text-center text-sm text-muted-foreground">
+                  No matching audit entries.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- Access ----------------------------- */
+function AccessTab() {
+  const fetchFn = useServerFn(getAccessReport);
+  const q = useQuery({
+    queryKey: ["access-report"],
+    queryFn: () => fetchFn(),
+  });
+  if (q.isLoading) return <div className="text-muted-foreground">Loading…</div>;
+  const d = q.data;
+  if (!d) return null;
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      <section className="bg-card border border-border rounded-lg p-4">
+        <h2 className="font-semibold mb-3">Drivers by access mode</h2>
+        <div className="flex gap-6">
+          <div>
+            <div className="text-2xl font-bold">{d.byMode.indefinite}</div>
+            <div className="text-xs text-muted-foreground">Indefinite</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold">{d.byMode.duration}</div>
+            <div className="text-xs text-muted-foreground">Time-limited</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-card border border-border rounded-lg p-4">
+        <h2 className="font-semibold mb-3">Pending resubscribe requests</h2>
+        {d.pendingResubscribe.length === 0 ? (
+          <div className="text-sm text-muted-foreground">None pending.</div>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {d.pendingResubscribe.map((r) => (
+              <li key={r.id} className="flex justify-between items-center border-b border-border pb-2 last:border-0">
+                <div>
+                  <Link
+                    to="/admin/drivers"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    {r.driver_name || r.driver_id.slice(0, 8)}
+                  </Link>
+                  {r.message && (
+                    <div className="text-xs text-muted-foreground">{r.message}</div>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(r.created_at).toLocaleDateString()}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="bg-card border border-border rounded-lg p-4 md:col-span-2">
+        <h2 className="font-semibold mb-3">Expiring in the next 7 days</h2>
+        {d.expiringSoon.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No upcoming expirations.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/30 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-semibold">Driver</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold">Ends</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.expiringSoon.map((r) => (
+                <tr key={r.driver_id} className="border-t border-border">
+                  <td className="px-3 py-2">
+                    <Link to="/admin/drivers" className="text-primary hover:underline">
+                      {r.driver_name}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {new Date(r.access_ends_at).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="bg-card border border-border rounded-lg p-4 md:col-span-2">
+        <h2 className="font-semibold mb-3">Expired but still enabled</h2>
+        {d.expired.length === 0 ? (
+          <div className="text-sm text-muted-foreground">None.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-muted/30 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-semibold">Driver</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold">Expired</th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.expired.map((r) => (
+                <tr key={r.driver_id} className="border-t border-border">
+                  <td className="px-3 py-2">
+                    <Link to="/admin/drivers" className="text-primary hover:underline">
+                      {r.driver_name}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {new Date(r.access_ends_at).toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   );
 }
