@@ -770,6 +770,9 @@ export const exportRecords = createServerFn({ method: "GET" })
 // ============================================================
 const ANALYTICS_KMPL_MIN = 10;
 const ANALYTICS_KMPL_MAX = 100;
+// Fare-per-km plausibility window (PHP/km) used by the data-quality report.
+const FAREKM_MIN = 2;
+const FAREKM_MAX = 200;
 
 export const getFleetLeaderboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
