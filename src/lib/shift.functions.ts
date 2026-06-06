@@ -626,11 +626,71 @@ export const getMyPerformance = createServerFn({ method: "GET" })
       between: {
         known_shifts: betweenKnownShifts,
         unknown_shifts: betweenUnknownShifts,
-        paid_km: paidKm,
+        // Split bar uses known-odometer only so paid_km + between_km == known total.
+        paid_km: paidKmKnown,
         between_km: betweenKm,
       },
       daily,
       service,
       shiftCount: (shifts ?? []).length,
+    };
+  });
+
+// ============================================================
+// MY RIDE HEATMAP — 7 (Mon..Sun) × 24 hours from trips.started_at
+// ============================================================
+export const getMyRideHeatmap = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ period: z.enum(["week", "month", "30d"]).default("30d") }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const now = new Date();
+    let from: Date;
+    if (data.period === "week") {
+      from = new Date(now);
+      const dow = (from.getDay() + 6) % 7;
+      from.setDate(from.getDate() - dow);
+      from.setHours(0, 0, 0, 0);
+    } else if (data.period === "month") {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      from = new Date(now);
+      from.setDate(from.getDate() - 30);
+    }
+    const fromIso = from.toISOString();
+    const { data: trips, error } = await supabase
+      .from("trips")
+      .select("started_at, gross_fare_php")
+      .eq("driver_id", userId)
+      .gte("started_at", fromIso);
+    if (error) throw new Error(error.message);
+
+    // grid[dow][hour] where dow: 0=Mon..6=Sun
+    const grid: { trips: number; gross: number }[][] = Array.from({ length: 7 }, () =>
+      Array.from({ length: 24 }, () => ({ trips: 0, gross: 0 })),
+    );
+    let totalTrips = 0;
+    let maxGross = 0;
+    let maxTrips = 0;
+    for (const t of trips ?? []) {
+      const d = new Date(t.started_at as string);
+      const dow = (d.getDay() + 6) % 7;
+      const hour = d.getHours();
+      const cell = grid[dow][hour];
+      cell.trips += 1;
+      cell.gross += Number(t.gross_fare_php ?? 0);
+      totalTrips += 1;
+      if (cell.gross > maxGross) maxGross = cell.gross;
+      if (cell.trips > maxTrips) maxTrips = cell.trips;
+    }
+    return {
+      period: data.period,
+      from: fromIso,
+      grid,
+      totalTrips,
+      maxGross,
+      maxTrips,
     };
   });
