@@ -27,10 +27,16 @@ function InsightsPage() {
   const session = useAuthSession();
   const [period, setPeriod] = useState<Period>("30d");
   const fetchPerf = useServerFn(getMyPerformance);
+  const fetchHeat = useServerFn(getMyRideHeatmap);
   const q = useQuery({
     queryKey: ["my-performance", session?.user.id, period],
     enabled: !!session,
     queryFn: () => fetchPerf({ data: { period } }),
+  });
+  const heat = useQuery({
+    queryKey: ["my-heatmap", session?.user.id, period],
+    enabled: !!session,
+    queryFn: () => fetchHeat({ data: { period } }),
   });
 
   if (session === undefined) return null;
