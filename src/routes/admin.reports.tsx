@@ -589,7 +589,7 @@ function AuditLogTab() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
             {q.data && q.data.rows.length === 0 && (
