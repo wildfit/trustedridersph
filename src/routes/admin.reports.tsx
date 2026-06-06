@@ -535,8 +535,8 @@ function AuditLogTab() {
             {(q.data?.rows ?? []).map((r) => {
               const isOpen = openRow === r.id;
               return (
-                <>
-                  <tr key={r.id} className="border-b border-border last:border-0">
+                <Fragment key={r.id}>
+                  <tr className="border-b border-border last:border-0">
                     <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(r.created_at).toLocaleString()}
                     </td>
