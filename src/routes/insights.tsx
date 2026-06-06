@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { BottomNav } from "@/components/BottomNav";
-import { getMyPerformance } from "@/lib/shift.functions";
+import { getMyPerformance, getMyRideHeatmap } from "@/lib/shift.functions";
 import { php, km } from "@/lib/format";
 import {
   LineChart,
