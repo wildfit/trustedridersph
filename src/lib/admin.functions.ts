@@ -770,6 +770,9 @@ export const exportRecords = createServerFn({ method: "GET" })
 // ============================================================
 const ANALYTICS_KMPL_MIN = 10;
 const ANALYTICS_KMPL_MAX = 100;
+// Fare-per-km plausibility window (PHP/km) used by the data-quality report.
+const FAREKM_MIN = 2;
+const FAREKM_MAX = 200;
 
 export const getFleetLeaderboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -834,7 +837,6 @@ export const getFleetLeaderboard = createServerFn({ method: "GET" })
     };
     const byDriver = new Map<string, Row>();
     const profById = new Map((profRes.data ?? []).map((p) => [p.id, p]));
-    const shiftToDriver = new Map((shifts ?? []).map((s) => [s.id, s.driver_id]));
 
     // per-shift trip distance + counts + gross
     const trDist = new Map<string, number>();
@@ -905,8 +907,6 @@ export const getFleetLeaderboard = createServerFn({ method: "GET" })
       if (!row.last_active || sa > row.last_active) row.last_active = sa;
       byDriver.set(did, row);
     }
-    // shiftToDriver unused beyond mapping; keep var to satisfy noUnused.
-    void shiftToDriver;
 
     const rows = [...byDriver.values()].map((r) => {
       const raw = r.liters > 0 && r.total_km > 0 ? r.total_km / r.liters : null;
@@ -1057,14 +1057,379 @@ export const getDataQualityReport = createServerFn({ method: "GET" })
       }
       if (trip > 0 && g > 0) {
         const fareKm = g / trip;
-        if (fareKm > 200 || fareKm < 2) {
+        if (fareKm > FAREKM_MAX || fareKm < FAREKM_MIN) {
           findings.push({
             ...base,
             flag: "fare_per_km_outlier",
-            detail: `Fare/km ₱${fareKm.toFixed(2)} looks off (trips ${trip.toFixed(1)}km, fares ₱${g.toFixed(0)}).`,
+            detail: `Fare/km ₱${fareKm.toFixed(2)} looks off (outside ₱${FAREKM_MIN}–₱${FAREKM_MAX}; trips ${trip.toFixed(1)}km, fares ₱${g.toFixed(0)}).`,
           });
         }
       }
     }
     return { findings };
+  });
+
+// ============================================================
+// REPORTS — Fleet engagement (driver activity + funnel)
+// ============================================================
+export const getFleetEngagement = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    const { data: roles, error: rErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "driver");
+    if (rErr) throw new Error(rErr.message);
+    const driverIds = (roles ?? []).map((r) => r.user_id);
+    if (driverIds.length === 0) {
+      return {
+        perDriver: [],
+        funnel: { created: 0, signed_in: 0, first_shift: 0, first_trip: 0 },
+      };
+    }
+
+    const { data: profs } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, first_sign_in_completed, last_seen_at")
+      .in("id", driverIds);
+
+    let sQ = supabaseAdmin
+      .from("shifts")
+      .select("driver_id, started_at")
+      .in("driver_id", driverIds);
+    if (data.from) sQ = sQ.gte("started_at", data.from);
+    if (data.to) sQ = sQ.lte("started_at", data.to);
+    const { data: shiftsInRange, error: sErr } = await sQ;
+    if (sErr) throw new Error(sErr.message);
+
+    // For funnel: ANY shift / ANY trip (lifetime, not range-scoped).
+    const [allShifts, allTrips] = await Promise.all([
+      supabaseAdmin.from("shifts").select("driver_id").in("driver_id", driverIds),
+      supabaseAdmin.from("trips").select("driver_id").in("driver_id", driverIds),
+    ]);
+    const driversWithShift = new Set((allShifts.data ?? []).map((s) => s.driver_id));
+    const driversWithTrip = new Set((allTrips.data ?? []).map((t) => t.driver_id));
+
+    // max(started_at) per driver (lifetime) for last_active fallback.
+    const { data: lifetimeShifts } = await supabaseAdmin
+      .from("shifts")
+      .select("driver_id, started_at")
+      .in("driver_id", driverIds);
+    const lastShiftByDriver = new Map<string, string>();
+    for (const s of lifetimeShifts ?? []) {
+      const prev = lastShiftByDriver.get(s.driver_id);
+      const sa = s.started_at as string;
+      if (!prev || sa > prev) lastShiftByDriver.set(s.driver_id, sa);
+    }
+
+    const shiftsInRangeByDriver = new Map<string, number>();
+    for (const s of shiftsInRange ?? []) {
+      shiftsInRangeByDriver.set(
+        s.driver_id,
+        (shiftsInRangeByDriver.get(s.driver_id) ?? 0) + 1,
+      );
+    }
+
+    const now = Date.now();
+    const perDriver = (profs ?? []).map((p) => {
+      const lastShift = lastShiftByDriver.get(p.id) ?? null;
+      const lastSeen = p.last_seen_at as string | null;
+      const last_active =
+        lastShift && lastSeen
+          ? lastShift > lastSeen
+            ? lastShift
+            : lastSeen
+          : (lastShift ?? lastSeen);
+      const daysSince = last_active
+        ? Math.floor((now - new Date(last_active).getTime()) / 86_400_000)
+        : null;
+      let status: "active_7d" | "active_30d" | "dormant" | "never_rode";
+      if (!driversWithShift.has(p.id)) status = "never_rode";
+      else if (daysSince != null && daysSince <= 7) status = "active_7d";
+      else if (daysSince != null && daysSince <= 30) status = "active_30d";
+      else status = "dormant";
+      return {
+        driver_id: p.id,
+        driver_name: p.full_name ?? "",
+        last_active,
+        days_since_active: daysSince,
+        shifts_in_range: shiftsInRangeByDriver.get(p.id) ?? 0,
+        status,
+      };
+    });
+
+    const funnel = {
+      created: driverIds.length,
+      signed_in: (profs ?? []).filter((p) => p.first_sign_in_completed).length,
+      first_shift: driversWithShift.size,
+      first_trip: driversWithTrip.size,
+    };
+    return { perDriver, funnel };
+  });
+
+// ============================================================
+// REPORTS — Service mix + fuel spend trend + efficiency outliers
+// ============================================================
+export const getFleetServiceFuel = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    // Trips in range (use trip started_at).
+    let tQ = supabaseAdmin
+      .from("trips")
+      .select("driver_id, shift_id, service_type, gross_fare_php, distance_km, started_at, ended_at");
+    if (data.from) tQ = tQ.gte("started_at", data.from);
+    if (data.to) tQ = tQ.lte("started_at", data.to);
+    const { data: trips, error: tErr } = await tQ;
+    if (tErr) throw new Error(tErr.message);
+
+    type Svc = { service_type: string; trips: number; gross: number; km: number; secs: number };
+    const bySvc = new Map<string, Svc>();
+    for (const t of trips ?? []) {
+      const k = t.service_type as string;
+      const row = bySvc.get(k) ?? { service_type: k, trips: 0, gross: 0, km: 0, secs: 0 };
+      row.trips += 1;
+      row.gross += Number(t.gross_fare_php ?? 0);
+      row.km += Number(t.distance_km ?? 0);
+      if (t.started_at && t.ended_at) {
+        row.secs += Math.max(
+          0,
+          (new Date(t.ended_at).getTime() - new Date(t.started_at).getTime()) / 1000,
+        );
+      }
+      bySvc.set(k, row);
+    }
+    const totalGross = [...bySvc.values()].reduce((s, r) => s + r.gross, 0);
+    const byService = [...bySvc.values()].map((r) => {
+      const hrs = r.secs / 3600;
+      return {
+        service_type: r.service_type,
+        trips: r.trips,
+        gross: r.gross,
+        km: r.km,
+        share_pct: totalGross > 0 ? (r.gross / totalGross) * 100 : 0,
+        peso_per_hour: hrs > 0 ? r.gross / hrs : null,
+      };
+    });
+
+    // Fuel in range (use fuel_logs.logged_at).
+    let fQ = supabaseAdmin
+      .from("fuel_logs")
+      .select("driver_id, total_cost_php, liters, logged_at");
+    if (data.from) fQ = fQ.gte("logged_at", data.from);
+    if (data.to) fQ = fQ.lte("logged_at", data.to);
+    const { data: fuelRows, error: fErr } = await fQ;
+    if (fErr) throw new Error(fErr.message);
+
+    let totalSpend = 0;
+    let totalLiters = 0;
+    const byDay = new Map<string, number>();
+    for (const f of fuelRows ?? []) {
+      const cost = Number(f.total_cost_php ?? 0);
+      totalSpend += cost;
+      totalLiters += Number(f.liters ?? 0);
+      const day = (f.logged_at as string).slice(0, 10);
+      byDay.set(day, (byDay.get(day) ?? 0) + cost);
+    }
+    const fuelByDay = [...byDay.entries()]
+      .map(([date, spend]) => ({ date, spend }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Efficiency outliers per driver (km/L outside 10–100) using shifts in range.
+    let sQ = supabaseAdmin
+      .from("shifts")
+      .select("id, driver_id, starting_odometer_km, ending_odometer_km");
+    if (data.from) sQ = sQ.gte("started_at", data.from);
+    if (data.to) sQ = sQ.lte("started_at", data.to);
+    const { data: shifts } = await sQ;
+    const shiftIds = (shifts ?? []).map((s) => s.id);
+    const safeIds = shiftIds.length ? shiftIds : ["00000000-0000-0000-0000-000000000000"];
+    const [tripsInShifts, fuelInShifts] = await Promise.all([
+      supabaseAdmin.from("trips").select("shift_id, distance_km").in("shift_id", safeIds),
+      supabaseAdmin.from("fuel_logs").select("shift_id, liters").in("shift_id", safeIds),
+    ]);
+    const trDist = new Map<string, number>();
+    for (const t of tripsInShifts.data ?? [])
+      trDist.set(t.shift_id!, (trDist.get(t.shift_id!) ?? 0) + Number(t.distance_km ?? 0));
+    const fuelLit = new Map<string, number>();
+    for (const f of fuelInShifts.data ?? [])
+      fuelLit.set(f.shift_id!, (fuelLit.get(f.shift_id!) ?? 0) + Number(f.liters ?? 0));
+    const perDriver = new Map<string, { km: number; liters: number }>();
+    for (const s of shifts ?? []) {
+      const start = s.starting_odometer_km != null ? Number(s.starting_odometer_km) : null;
+      const end = s.ending_odometer_km != null ? Number(s.ending_odometer_km) : null;
+      const trip = trDist.get(s.id) ?? 0;
+      const km = start != null && end != null ? Math.max(0, end - start) : trip;
+      const liters = fuelLit.get(s.id) ?? 0;
+      const cur = perDriver.get(s.driver_id) ?? { km: 0, liters: 0 };
+      cur.km += km;
+      cur.liters += liters;
+      perDriver.set(s.driver_id, cur);
+    }
+    const outlierIds = [...perDriver.entries()].filter(
+      ([, v]) =>
+        v.liters > 0 &&
+        v.km > 0 &&
+        (v.km / v.liters < ANALYTICS_KMPL_MIN || v.km / v.liters > ANALYTICS_KMPL_MAX),
+    );
+    const profRes = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in(
+        "id",
+        outlierIds.length ? outlierIds.map(([id]) => id) : ["00000000-0000-0000-0000-000000000000"],
+      );
+    const nameById = new Map((profRes.data ?? []).map((p) => [p.id, p.full_name ?? ""]));
+    const efficiencyOutliers = outlierIds.map(([id, v]) => ({
+      driver_id: id,
+      driver_name: nameById.get(id) ?? "",
+      km_per_liter: v.km / v.liters,
+    }));
+
+    return {
+      byService,
+      fuel: { total_spend: totalSpend, total_liters: totalLiters, byDay: fuelByDay },
+      efficiencyOutliers,
+    };
+  });
+
+// ============================================================
+// REPORTS — Audit log viewer (admin/superadmin)
+// ============================================================
+export const getAuditLog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        actorId: z.string().uuid().optional(),
+        entityType: z.string().min(1).max(40).optional(),
+        action: z.string().min(1).max(40).optional(),
+        from: z.string().datetime().optional(),
+        to: z.string().datetime().optional(),
+        limit: z.number().int().min(1).max(500).default(200),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    let q = supabaseAdmin
+      .from("audit_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (data.actorId) q = q.eq("actor_id", data.actorId);
+    if (data.entityType) q = q.eq("entity_type", data.entityType);
+    if (data.action) q = q.eq("action", data.action);
+    if (data.from) q = q.gte("created_at", data.from);
+    if (data.to) q = q.lte("created_at", data.to);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const actorIds = [...new Set((rows ?? []).map((r) => r.actor_id))];
+    const profRes = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", actorIds.length ? actorIds : ["00000000-0000-0000-0000-000000000000"]);
+    const nameById = new Map((profRes.data ?? []).map((p) => [p.id, p.full_name ?? ""]));
+    return {
+      rows: (rows ?? []).map((r) => ({
+        ...r,
+        actor_name: nameById.get(r.actor_id) ?? "",
+      })),
+    };
+  });
+
+// ============================================================
+// REPORTS — Access report (windows + resubscribe queue)
+// ============================================================
+export const getAccessReport = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+
+    const { data: roles } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "driver");
+    const driverIds = (roles ?? []).map((r) => r.user_id);
+    const safeIds = driverIds.length ? driverIds : ["00000000-0000-0000-0000-000000000000"];
+
+    const { data: profs } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, is_enabled, access_mode, access_starts_at, access_ends_at")
+      .in("id", safeIds);
+
+    const now = Date.now();
+    const sevenDays = now + 7 * 86_400_000;
+    const byMode = { indefinite: 0, duration: 0 };
+    const expiringSoon: {
+      driver_id: string;
+      driver_name: string;
+      access_ends_at: string;
+    }[] = [];
+    const expired: {
+      driver_id: string;
+      driver_name: string;
+      access_ends_at: string;
+    }[] = [];
+
+    for (const p of profs ?? []) {
+      if (p.access_mode === "indefinite") byMode.indefinite += 1;
+      else byMode.duration += 1;
+      if (p.access_mode === "duration" && p.access_ends_at) {
+        const ends = new Date(p.access_ends_at as string).getTime();
+        if (ends < now && p.is_enabled) {
+          expired.push({
+            driver_id: p.id,
+            driver_name: p.full_name ?? "",
+            access_ends_at: p.access_ends_at as string,
+          });
+        } else if (ends >= now && ends <= sevenDays) {
+          expiringSoon.push({
+            driver_id: p.id,
+            driver_name: p.full_name ?? "",
+            access_ends_at: p.access_ends_at as string,
+          });
+        }
+      }
+    }
+    expiringSoon.sort((a, b) => a.access_ends_at.localeCompare(b.access_ends_at));
+    expired.sort((a, b) => b.access_ends_at.localeCompare(a.access_ends_at));
+
+    const { data: reqs } = await supabaseAdmin
+      .from("user_requests")
+      .select("id, driver_id, message, created_at")
+      .eq("type", "resubscribe")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    const nameById = new Map((profs ?? []).map((p) => [p.id, p.full_name ?? ""]));
+    const pendingResubscribe = (reqs ?? []).map((r) => ({
+      id: r.id,
+      driver_id: r.driver_id,
+      driver_name: nameById.get(r.driver_id) ?? "",
+      message: r.message ?? null,
+      created_at: r.created_at,
+    }));
+
+    return { byMode, expiringSoon, expired, pendingResubscribe };
   });

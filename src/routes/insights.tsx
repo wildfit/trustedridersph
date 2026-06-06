@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { BottomNav } from "@/components/BottomNav";
-import { getMyPerformance } from "@/lib/shift.functions";
+import { getMyPerformance, getMyRideHeatmap } from "@/lib/shift.functions";
 import { php, km } from "@/lib/format";
 import {
   LineChart,
@@ -27,10 +27,16 @@ function InsightsPage() {
   const session = useAuthSession();
   const [period, setPeriod] = useState<Period>("30d");
   const fetchPerf = useServerFn(getMyPerformance);
+  const fetchHeat = useServerFn(getMyRideHeatmap);
   const q = useQuery({
     queryKey: ["my-performance", session?.user.id, period],
     enabled: !!session,
     queryFn: () => fetchPerf({ data: { period } }),
+  });
+  const heat = useQuery({
+    queryKey: ["my-heatmap", session?.user.id, period],
+    enabled: !!session,
+    queryFn: () => fetchHeat({ data: { period } }),
   });
 
   if (session === undefined) return null;
@@ -87,7 +93,22 @@ function InsightsPage() {
               label="km / L"
               value={d.metrics.km_per_liter != null ? d.metrics.km_per_liter.toFixed(1) : "—"}
             />
+            <Kpi
+              label="Fuel cost / km"
+              value={d.metrics.fuel_cost_per_km != null ? php(d.metrics.fuel_cost_per_km) : "—"}
+            />
+            <Kpi
+              label="Time on trips"
+              value={
+                d.metrics.time_utilization != null
+                  ? `${(d.metrics.time_utilization * 100).toFixed(0)}%`
+                  : "—"
+              }
+            />
           </div>
+
+          <Heatmap data={heat.data} loading={heat.isLoading} />
+
 
           <section className="bg-card border border-border rounded-lg p-4">
             <div className="flex items-start gap-2">
@@ -214,5 +235,101 @@ function Kpi({
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-xl font-bold mt-1">{value}</div>
     </div>
+  );
+}
+
+const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+type HeatmapData = {
+  grid: { trips: number; gross: number }[][];
+  totalTrips: number;
+  maxGross: number;
+  maxTrips: number;
+};
+
+function Heatmap({ data, loading }: { data: HeatmapData | undefined; loading: boolean }) {
+  if (loading) {
+    return (
+      <section className="bg-card border border-border rounded-lg p-4">
+        <h2 className="font-semibold mb-3">Best time to ride</h2>
+        <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
+      </section>
+    );
+  }
+  if (!data) return null;
+  const sparse = data.totalTrips < 10;
+  const useGross = data.maxGross > 0;
+  const max = useGross ? data.maxGross : data.maxTrips;
+  return (
+    <section className="bg-card border border-border rounded-lg p-4">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div>
+          <h2 className="font-semibold">Best time to ride</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Earnings by day &amp; hour (darker = more {useGross ? "₱" : "trips"}).
+          </p>
+        </div>
+      </div>
+      {sparse ? (
+        <div className="py-8 text-center text-sm text-muted-foreground">
+          Not enough trips yet to spot patterns.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <div className="inline-block min-w-full">
+            <div className="grid" style={{ gridTemplateColumns: "32px repeat(24, minmax(14px, 1fr))" }}>
+              <div />
+              {Array.from({ length: 24 }, (_, h) => (
+                <div key={h} className="text-[9px] text-muted-foreground text-center">
+                  {h % 3 === 0 ? h : ""}
+                </div>
+              ))}
+              {data.grid.map((row, dow) => (
+                <FragmentRow
+                  key={dow}
+                  label={DOW_LABELS[dow]}
+                  row={row}
+                  max={max}
+                  useGross={useGross}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FragmentRow({
+  label,
+  row,
+  max,
+  useGross,
+}: {
+  label: string;
+  row: { trips: number; gross: number }[];
+  max: number;
+  useGross: boolean;
+}) {
+  return (
+    <>
+      <div className="text-[10px] text-muted-foreground self-center pr-1">{label}</div>
+      {row.map((c, h) => {
+        const v = useGross ? c.gross : c.trips;
+        const intensity = max > 0 ? Math.min(1, v / max) : 0;
+        const bg =
+          v === 0
+            ? "hsl(var(--muted))"
+            : `color-mix(in oklab, hsl(var(--primary)) ${Math.round(intensity * 100)}%, hsl(var(--muted)))`;
+        return (
+          <div
+            key={h}
+            title={`${label} ${h}:00 — ${c.trips} trip${c.trips === 1 ? "" : "s"}, ₱${c.gross.toFixed(0)}`}
+            className="aspect-square rounded-sm m-[1px]"
+            style={{ background: bg }}
+          />
+        );
+      })}
+    </>
   );
 }
