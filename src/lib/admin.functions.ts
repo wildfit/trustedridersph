@@ -837,7 +837,6 @@ export const getFleetLeaderboard = createServerFn({ method: "GET" })
     };
     const byDriver = new Map<string, Row>();
     const profById = new Map((profRes.data ?? []).map((p) => [p.id, p]));
-    const shiftToDriver = new Map((shifts ?? []).map((s) => [s.id, s.driver_id]));
 
     // per-shift trip distance + counts + gross
     const trDist = new Map<string, number>();
