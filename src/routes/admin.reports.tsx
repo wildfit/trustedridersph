@@ -262,7 +262,7 @@ function Engagement({ fromIso, toIso }: { fromIso?: string; toIso?: string }) {
                     {s.value} {stepPct != null && `(${stepPct.toFixed(0)}% of prev)`}
                   </span>
                 </div>
-                <div className="h-2 bg-muted rounded overflow-hidden">
+                <div className="h-1 bg-muted rounded overflow-hidden">
                   <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                 </div>
               </div>
