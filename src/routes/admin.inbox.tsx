@@ -3,13 +3,67 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listAllRequests, resolveRequest } from "@/lib/requests.functions";
-import { Check, X, Clock, Inbox, RefreshCw, Pencil } from "lucide-react";
+import {
+  listDriverMessagesAdmin,
+  sendDriverMessage,
+} from "@/lib/messages.functions";
+import { DriverCombobox } from "@/components/admin/DriverCombobox";
+import {
+  Check,
+  X,
+  Clock,
+  Inbox,
+  RefreshCw,
+  Pencil,
+  Send,
+  MailCheck,
+  Mail,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/inbox")({ component: AdminInbox });
 
 type StatusFilter = "pending" | "approved" | "rejected" | "all";
+type TopTab = "requests" | "messages";
 
 function AdminInbox() {
+  const [tab, setTab] = useState<TopTab>("requests");
+
+  return (
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Inbox className="size-6" /> Inbox
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Requests from drivers and direct messages you've sent.
+        </p>
+      </header>
+
+      <div className="flex gap-1 bg-muted p-1 rounded-md w-fit">
+        {[
+          { v: "requests" as const, label: "Requests" },
+          { v: "messages" as const, label: "Messages" },
+        ].map((t) => (
+          <button
+            key={t.v}
+            onClick={() => setTab(t.v)}
+            className={`px-3 h-8 rounded text-sm font-medium ${
+              tab === t.v
+                ? "bg-card shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "requests" ? <RequestsPanel /> : <MessagesPanel />}
+    </div>
+  );
+}
+
+function RequestsPanel() {
   const [filter, setFilter] = useState<StatusFilter>("pending");
   const fetchAll = useServerFn(listAllRequests);
   const resolve = useServerFn(resolveRequest);
@@ -38,15 +92,6 @@ function AdminInbox() {
 
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Inbox className="size-6" /> Inbox
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Profile change and resubscription requests from drivers.
-        </p>
-      </header>
-
       <div className="flex gap-1 bg-muted p-1 rounded-md w-fit">
         {tabs.map((t) => (
           <button
@@ -73,7 +118,10 @@ function AdminInbox() {
           const proposed = (r.proposed ?? {}) as Record<string, unknown>;
           const Icon = r.type === "resubscribe" ? RefreshCw : Pencil;
           return (
-            <div key={r.id} className="bg-card border border-border rounded-lg p-4">
+            <div
+              key={r.id}
+              className="bg-card border border-border rounded-lg p-4"
+            >
               <div className="flex items-start gap-3">
                 <div className="size-9 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
                   <Icon className="size-4" />
@@ -155,14 +203,162 @@ function AdminInbox() {
   );
 }
 
+function MessagesPanel() {
+  const [recipient, setRecipient] = useState<string | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filterDriver, setFilterDriver] = useState<string | null>(null);
+
+  const send = useServerFn(sendDriverMessage);
+  const fetchList = useServerFn(listDriverMessagesAdmin);
+  const list = useQuery({
+    queryKey: ["admin-messages", filterDriver],
+    queryFn: () =>
+      fetchList({ data: { driverId: filterDriver ?? undefined } }),
+  });
+
+  async function handleSend() {
+    setError(null);
+    if (!recipient) {
+      setError("Pick a recipient driver.");
+      return;
+    }
+    if (!body.trim()) {
+      setError("Message body is required.");
+      return;
+    }
+    setSending(true);
+    try {
+      await send({
+        data: {
+          driverId: recipient,
+          subject: subject.trim() || undefined,
+          body: body.trim(),
+        },
+      });
+      setBody("");
+      setSubject("");
+      await list.refetch();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-card border border-border rounded-lg p-4 space-y-3">
+        <h2 className="font-semibold">Compose message</h2>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">
+            Recipient
+          </label>
+          <div className="mt-1">
+            <DriverCombobox
+              value={recipient}
+              onChange={setRecipient}
+              allowAll={false}
+              placeholder="Select a driver…"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">
+            Subject (optional)
+          </label>
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="mt-1 w-full h-9 px-3 rounded-md border border-border bg-background text-sm"
+            maxLength={200}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground">
+            Message
+          </label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={4}
+            className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
+            maxLength={4000}
+          />
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <button
+          onClick={handleSend}
+          disabled={sending}
+          className="inline-flex items-center gap-1 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-60"
+        >
+          <Send className="size-4" /> {sending ? "Sending…" : "Send"}
+        </button>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="font-semibold">Sent messages</h2>
+          <DriverCombobox value={filterDriver} onChange={setFilterDriver} />
+        </div>
+        {list.isLoading && (
+          <p className="text-muted-foreground">Loading…</p>
+        )}
+        {list.data && list.data.length === 0 && (
+          <p className="text-muted-foreground">No messages yet.</p>
+        )}
+        {(list.data ?? []).map((m) => (
+          <div
+            key={m.id}
+            className="bg-card border border-border rounded-lg p-4"
+          >
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <span className="font-semibold">{m.driver_name}</span>
+              <span className="text-xs text-muted-foreground">
+                {new Date(m.created_at).toLocaleString()}
+              </span>
+            </div>
+            {m.subject && (
+              <p className="mt-1 text-sm font-medium">{m.subject}</p>
+            )}
+            <p className="mt-1 text-sm whitespace-pre-wrap">{m.body}</p>
+            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+              {m.read_at ? (
+                <>
+                  <MailCheck className="size-3.5 text-emerald-500" />
+                  Read {new Date(m.read_at).toLocaleString()}
+                </>
+              ) : (
+                <>
+                  <Mail className="size-3.5" />
+                  Unread
+                </>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    pending: "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
-    approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
-    rejected: "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
+    pending:
+      "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300",
+    approved:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300",
+    rejected:
+      "bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300",
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${map[status] ?? "bg-muted"}`}>
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
+        map[status] ?? "bg-muted"
+      }`}
+    >
       {status === "pending" && <Clock className="size-3" />}
       {status}
     </span>
