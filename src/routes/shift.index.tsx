@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { BottomNav } from "@/components/BottomNav";
+import { InboxBell } from "@/components/InboxBell";
 import { getActiveShift } from "@/lib/shift.functions";
 import { computeShift, estimateFuelLeft } from "@/lib/shift-math";
 import { php, km, liters as litersFmt } from "@/lib/format";
@@ -43,11 +44,14 @@ function ShiftPage() {
   return (
     <div className="screen">
       <div className="screen-pad">
-        <header className="pt-4 pb-6">
-          <h1 className="text-3xl font-bold">My shift</h1>
-          <p className="text-muted-foreground mt-1">
-            {hasActive ? "Your shift is running." : "No shift yet. Tap below to start."}
-          </p>
+        <header className="pt-4 pb-6 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold">My shift</h1>
+            <p className="text-muted-foreground mt-1">
+              {hasActive ? "Your shift is running." : "No shift yet. Tap below to start."}
+            </p>
+          </div>
+          <InboxBell />
         </header>
 
         {!hasActive && (
