@@ -628,17 +628,24 @@ export const deleteRecord = createServerFn({ method: "POST" })
 export const getDashboardSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ days: z.number().min(7).max(365).default(30) }).parse(d),
+    z
+      .object({
+        days: z.number().min(7).max(365).default(30),
+        driverId: z.string().uuid().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const since = new Date(Date.now() - data.days * 86400_000).toISOString();
 
-    const { data: shifts } = await supabaseAdmin
+    let shiftsQ = supabaseAdmin
       .from("shifts")
       .select("id, started_at, starting_odometer_km, ending_odometer_km")
       .gte("started_at", since)
       .not("ended_at", "is", null);
+    if (data.driverId) shiftsQ = shiftsQ.eq("driver_id", data.driverId);
+    const { data: shifts } = await shiftsQ;
 
     const shiftIds = (shifts ?? []).map((s) => s.id);
     const [tripsRes, fuelRes, feesRes] = await Promise.all([
