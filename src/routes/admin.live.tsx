@@ -1,18 +1,40 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listLiveDrivers } from "@/lib/requests.functions";
-import { Radio, Bike } from "lucide-react";
+import { forceEndShift } from "@/lib/admin.functions";
+import { Radio, Bike, StopCircle } from "lucide-react";
 
 export const Route = createFileRoute("/admin/live")({ component: AdminLive });
 
 function AdminLive() {
   const fetchLive = useServerFn(listLiveDrivers);
+  const endShift = useServerFn(forceEndShift);
   const live = useQuery({
     queryKey: ["admin-live"],
     queryFn: () => fetchLive({ data: { withinMinutes: 5 } }),
     refetchInterval: 15_000,
   });
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function handleForceEnd(shiftId: string, driverName: string) {
+    if (
+      !window.confirm(
+        `Force-end the active shift for ${driverName}? The driver will be notified.`,
+      )
+    )
+      return;
+    setBusyId(shiftId);
+    try {
+      await endShift({ data: { shiftId } });
+      await live.refetch();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -71,6 +93,21 @@ function AdminLive() {
                   </span>
                 )}
               </div>
+              {onShift && d.active_shift && (
+                <button
+                  onClick={() =>
+                    handleForceEnd(
+                      d.active_shift!.id,
+                      d.full_name ?? "this driver",
+                    )
+                  }
+                  disabled={busyId === d.active_shift.id}
+                  className="mt-3 inline-flex items-center gap-1 h-8 px-3 rounded-md border border-destructive/40 text-destructive text-xs font-semibold hover:bg-destructive/10 disabled:opacity-60"
+                >
+                  <StopCircle className="size-4" />
+                  {busyId === d.active_shift.id ? "Ending…" : "Force end shift"}
+                </button>
+              )}
             </div>
           );
         })}

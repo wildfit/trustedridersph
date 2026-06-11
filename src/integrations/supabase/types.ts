@@ -65,6 +65,36 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_messages: {
+        Row: {
+          body: string
+          created_at: string
+          driver_id: string
+          id: string
+          read_at: string | null
+          sender_id: string | null
+          subject: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          driver_id: string
+          id?: string
+          read_at?: string | null
+          sender_id?: string | null
+          subject?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          driver_id?: string
+          id?: string
+          read_at?: string | null
+          sender_id?: string | null
+          subject?: string | null
+        }
+        Relationships: []
+      }
       fee_categories: {
         Row: {
           created_at: string
@@ -502,6 +532,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_end_stale_shifts: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

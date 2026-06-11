@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useHeartbeat } from "@/hooks/use-heartbeat";
 import { BottomNav } from "@/components/BottomNav";
+import { InboxBell } from "@/components/InboxBell";
 import {
   LogOut, Camera, Sun, Moon, Monitor, Loader2,
   Pencil, RefreshCw, Inbox, Check, X, Clock,
@@ -114,8 +115,9 @@ function ProfilePage() {
   return (
     <div className="screen">
       <div className="screen-pad">
-        <header className="pt-4 pb-6">
+        <header className="pt-4 pb-6 flex items-start justify-between gap-3">
           <h1 className="text-3xl font-bold">Profile</h1>
+          <InboxBell />
         </header>
 
         <div className="flex flex-col items-center">

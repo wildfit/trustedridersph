@@ -628,17 +628,24 @@ export const deleteRecord = createServerFn({ method: "POST" })
 export const getDashboardSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ days: z.number().min(7).max(365).default(30) }).parse(d),
+    z
+      .object({
+        days: z.number().min(7).max(365).default(30),
+        driverId: z.string().uuid().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const since = new Date(Date.now() - data.days * 86400_000).toISOString();
 
-    const { data: shifts } = await supabaseAdmin
+    let shiftsQ = supabaseAdmin
       .from("shifts")
       .select("id, started_at, starting_odometer_km, ending_odometer_km")
       .gte("started_at", since)
       .not("ended_at", "is", null);
+    if (data.driverId) shiftsQ = shiftsQ.eq("driver_id", data.driverId);
+    const { data: shifts } = await shiftsQ;
 
     const shiftIds = (shifts ?? []).map((s) => s.id);
     const [tripsRes, fuelRes, feesRes] = await Promise.all([
@@ -1432,4 +1439,49 @@ export const getAccessReport = createServerFn({ method: "GET" })
     }));
 
     return { byMode, expiringSoon, expired, pendingResubscribe };
+  });
+
+// ============================================================
+// FORCE END SHIFT
+// ============================================================
+export const forceEndShift = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ shiftId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const { data: shift, error } = await supabaseAdmin
+      .from("shifts")
+      .select("id, driver_id, started_at, ended_at, notes")
+      .eq("id", data.shiftId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!shift) throw new Error("Shift not found");
+    if (shift.ended_at) throw new Error("Shift is already ended");
+
+    const newNotes =
+      (shift.notes ? shift.notes : "") + " | Force-ended by admin";
+    const endedAt = new Date().toISOString();
+    const { error: uErr } = await supabaseAdmin
+      .from("shifts")
+      .update({ ended_at: endedAt, notes: newNotes })
+      .eq("id", shift.id);
+    if (uErr) throw new Error(uErr.message);
+
+    await logAudit({
+      actorId: context.userId,
+      entityType: "shifts",
+      entityId: shift.id,
+      action: "force_end",
+      before: { ended_at: null, notes: shift.notes },
+      after: { ended_at: endedAt, notes: newNotes },
+    });
+
+    await supabaseAdmin.from("driver_messages").insert({
+      driver_id: shift.driver_id,
+      sender_id: context.userId,
+      subject: "Shift ended by admin",
+      body: "An admin ended your active shift.",
+    });
+
+    return { ok: true };
   });

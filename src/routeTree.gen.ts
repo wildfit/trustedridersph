@@ -14,6 +14,7 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InsightsRouteImport } from './routes/insights'
+import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as FuelRouteImport } from './routes/fuel'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FeesRouteImport } from './routes/fees'
@@ -58,6 +59,11 @@ const LoginRoute = LoginRouteImport.update({
 const InsightsRoute = InsightsRouteImport.update({
   id: '/insights',
   path: '/insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FuelRoute = FuelRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
+  '/inbox': typeof InboxRoute
   '/insights': typeof InsightsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
+  '/inbox': typeof InboxRoute
   '/insights': typeof InsightsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/fees': typeof FeesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/fuel': typeof FuelRoute
+  '/inbox': typeof InboxRoute
   '/insights': typeof InsightsRoute
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot-password'
     | '/fuel'
+    | '/inbox'
     | '/insights'
     | '/login'
     | '/profile'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot-password'
     | '/fuel'
+    | '/inbox'
     | '/insights'
     | '/login'
     | '/profile'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/fees'
     | '/forgot-password'
     | '/fuel'
+    | '/inbox'
     | '/insights'
     | '/login'
     | '/profile'
@@ -333,6 +345,7 @@ export interface RootRouteChildren {
   FeesRoute: typeof FeesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   FuelRoute: typeof FuelRoute
+  InboxRoute: typeof InboxRoute
   InsightsRoute: typeof InsightsRoute
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
@@ -381,6 +394,13 @@ declare module '@tanstack/react-router' {
       path: '/insights'
       fullPath: '/insights'
       preLoaderRoute: typeof InsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fuel': {
@@ -558,6 +578,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeesRoute: FeesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   FuelRoute: FuelRoute,
+  InboxRoute: InboxRoute,
   InsightsRoute: InsightsRoute,
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getDashboardSummary } from "@/lib/admin.functions";
 import { php, km } from "@/lib/format";
+import { DriverCombobox } from "@/components/admin/DriverCombobox";
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
@@ -12,30 +13,35 @@ export const Route = createFileRoute("/admin/dashboard")({ component: Dashboard 
 
 function Dashboard() {
   const [days, setDays] = useState(30);
+  const [driverId, setDriverId] = useState<string | null>(null);
   const fetchSummary = useServerFn(getDashboardSummary);
   const q = useQuery({
-    queryKey: ["dashboard-summary", days],
-    queryFn: () => fetchSummary({ data: { days } }),
+    queryKey: ["dashboard-summary", days, driverId],
+    queryFn: () =>
+      fetchSummary({ data: { days, driverId: driverId ?? undefined } }),
   });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex gap-1 bg-card border border-border rounded-md p-1">
-          {[
-            { v: 7, l: "Daily (7d)" },
-            { v: 30, l: "Weekly (30d)" },
-            { v: 90, l: "Monthly (90d)" },
-          ].map((o) => (
-            <button
-              key={o.v}
-              onClick={() => setDays(o.v)}
-              className={`px-3 py-1.5 text-sm rounded font-medium ${days === o.v ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-            >
-              {o.l}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <DriverCombobox value={driverId} onChange={setDriverId} />
+          <div className="flex gap-1 bg-card border border-border rounded-md p-1">
+            {[
+              { v: 7, l: "Daily (7d)" },
+              { v: 30, l: "Weekly (30d)" },
+              { v: 90, l: "Monthly (90d)" },
+            ].map((o) => (
+              <button
+                key={o.v}
+                onClick={() => setDays(o.v)}
+                className={`px-3 py-1.5 text-sm rounded font-medium ${days === o.v ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              >
+                {o.l}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -76,7 +82,8 @@ function Dashboard() {
           </Card>
 
           <p className="text-xs text-muted-foreground">
-            Based on {q.data.shiftCount} completed shifts in the selected range.
+            Based on {q.data.shiftCount} completed shifts in the selected range
+            {driverId ? " for the selected driver" : ""}.
           </p>
         </>
       )}
