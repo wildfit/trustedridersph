@@ -270,7 +270,7 @@ export const ensureSuperadminSeeded = createServerFn({ method: "POST" })
     }
 
     const email =
-      (await getSetting<string>("superadmin_email")) ?? "admin@trustedriders.ph";
+      (await getSetting<string>("superadmin_email")) ?? "admin@kitametro.ph";
     const username =
       (await getSetting<string>("superadmin_username")) ?? "Admin";
 

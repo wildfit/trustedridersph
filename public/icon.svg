@@ -6,12 +6,32 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="96" fill="url(#g)"/>
-  <!-- Stylised motorbike mark -->
-  <g fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="150" cy="340" r="62"/>
-    <circle cx="362" cy="340" r="62"/>
-    <path d="M150 340 L240 240 L320 240 L362 340"/>
-    <path d="M240 240 L210 180 L260 180"/>
-    <path d="M320 240 L350 200"/>
+  <!-- Motorcycle wheels -->
+  <g fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="130" cy="360" r="58"/>
+    <circle cx="382" cy="360" r="58"/>
+    <!-- Frame / seat / handlebars hint -->
+    <path d="M130 360 L210 260 L300 260 L382 360"/>
+    <path d="M210 260 L185 210 L235 210"/>
+    <path d="M300 260 L335 220"/>
+  </g>
+  <!-- Speedometer dial centered -->
+  <circle cx="256" cy="240" r="118" fill="#fff" opacity="0.96"/>
+  <g stroke="#E22A2A" stroke-width="6" stroke-linecap="round" fill="none">
+    <!-- Tick marks -->
+    <path d="M256 138 L256 152"/>
+    <path d="M328 168 L319 178"/>
+    <path d="M358 240 L344 240"/>
+    <path d="M328 312 L319 302"/>
+    <path d="M184 168 L193 178"/>
+    <path d="M154 240 L168 240"/>
+    <path d="M184 312 L193 302"/>
+  </g>
+  <!-- Needle pointing upper-right -->
+  <path d="M256 240 L322 188" stroke="#E22A2A" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="256" cy="240" r="10" fill="#E22A2A"/>
+  <!-- Peso sign ₱ -->
+  <g fill="#E22A2A" font-family="Inter, Arial, sans-serif" font-weight="900">
+    <text x="256" y="298" text-anchor="middle" font-size="92">₱</text>
   </g>
 </svg>

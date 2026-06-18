@@ -22,7 +22,7 @@ function ExportPage() {
         to: to ? new Date(to + "T23:59:59").toISOString() : undefined,
       } });
       const stamp = new Date().toISOString().slice(0, 10);
-      const filename = `trusted-riders-records-${stamp}.${format}`;
+      const filename = `kita-metro-records-${stamp}.${format}`;
       if (format === "csv") {
         const csv = Papa.unparse(rows);
         download(filename, new Blob([csv], { type: "text/csv" }));

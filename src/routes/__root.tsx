@@ -62,7 +62,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1",
       },
-      { title: "Trusted Riders — Your Driver Log" },
+      { title: "Kita + Metro — Your Driver Log" },
       {
         name: "description",
         content:
@@ -71,13 +71,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#E22A2A" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { name: "apple-mobile-web-app-title", content: "Trusted Riders" },
-      { property: "og:title", content: "Trusted Riders — Your Driver Log" },
-      { property: "og:description", content: "Trusted Rider Log is a PWA for motorcycle drivers to track earnings after fuel costs." },
+      { name: "apple-mobile-web-app-title", content: "Kita + Metro" },
+      { property: "og:title", content: "Kita + Metro — Your Driver Log" },
+      { property: "og:description", content: "Kita + Metro is a PWA for motorcycle drivers to track earnings after fuel costs." },
       { property: "og:type", content: "website" },
-      { name: "twitter:title", content: "Trusted Riders — Your Driver Log" },
-      { name: "description", content: "Trusted Rider Log is a PWA for motorcycle drivers to track earnings after fuel costs." },
-      { name: "twitter:description", content: "Trusted Rider Log is a PWA for motorcycle drivers to track earnings after fuel costs." },
+      { name: "twitter:title", content: "Kita + Metro — Your Driver Log" },
+      { name: "description", content: "Kita + Metro is a PWA for motorcycle drivers to track earnings after fuel costs." },
+      { name: "twitter:description", content: "Kita + Metro is a PWA for motorcycle drivers to track earnings after fuel costs." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c66fcc48-cb90-41d2-92cf-87277f28b3bf/id-preview-cc599fb7--c36e3f37-a141-4939-909e-8135db3548c0.lovable.app-1779807295044.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c66fcc48-cb90-41d2-92cf-87277f28b3bf/id-preview-cc599fb7--c36e3f37-a141-4939-909e-8135db3548c0.lovable.app-1779807295044.png" },
       { name: "twitter:card", content: "summary_large_image" },
