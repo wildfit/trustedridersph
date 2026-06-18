@@ -1,11 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#E22A2A"/>
-  <!-- Maskable: keep mark inside the 80% safe area (centered, ~410px) -->
-  <g transform="translate(56,56) scale(0.78)" fill="none" stroke="#fff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="150" cy="340" r="62"/>
-    <circle cx="362" cy="340" r="62"/>
-    <path d="M150 340 L240 240 L320 240 L362 340"/>
-    <path d="M240 240 L210 180 L260 180"/>
-    <path d="M320 240 L350 200"/>
+  <!-- Keep mark inside the 80% safe area (centered, ~410px) -->
+  <g transform="translate(56,56) scale(0.78)">
+    <g fill="none" stroke="#fff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="130" cy="360" r="58"/>
+      <circle cx="382" cy="360" r="58"/>
+      <path d="M130 360 L210 260 L300 260 L382 360"/>
+      <path d="M210 260 L185 210 L235 210"/>
+      <path d="M300 260 L335 220"/>
+    </g>
+    <circle cx="256" cy="240" r="118" fill="#fff"/>
+    <path d="M256 240 L322 188" stroke="#E22A2A" stroke-width="12" stroke-linecap="round" fill="none"/>
+    <circle cx="256" cy="240" r="10" fill="#E22A2A"/>
+    <text x="256" y="298" text-anchor="middle" font-size="100" font-weight="900"
+          font-family="Inter, Arial, sans-serif" fill="#E22A2A">₱</text>
   </g>
 </svg>
