@@ -35,10 +35,13 @@ function LoginPage() {
     <div className="screen">
       <div className="screen-pad flex flex-col">
         <div className="flex flex-col items-center text-center pt-8 pb-10">
-          <div className="size-20 rounded-3xl bg-primary text-primary-foreground
-                          flex items-center justify-center shadow-lg">
-            <Bike className="size-10" />
-          </div>
+          <img
+            src="/icon.svg"
+            alt="Kita + Metro logo"
+            className="size-20 rounded-3xl shadow-lg"
+            width={80}
+            height={80}
+          />
           <h1 className="mt-5 text-3xl font-bold">Kita + Metro</h1>
           <p className="mt-2 text-muted-foreground text-lg">
             Welcome back, kabayan!
