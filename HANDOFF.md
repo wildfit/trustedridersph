@@ -1,4 +1,4 @@
-# Trusted Riders — Handoff
+# Kita + Metro — Handoff
 
 A non-technical rider's daily log (driver UI) + a desktop admin/superadmin
 console. Built on TanStack Start v1 + Supabase (via Lovable Cloud).
