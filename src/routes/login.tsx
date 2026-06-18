@@ -39,7 +39,7 @@ function LoginPage() {
                           flex items-center justify-center shadow-lg">
             <Bike className="size-10" />
           </div>
-          <h1 className="mt-5 text-3xl font-bold">Trusted Riders</h1>
+          <h1 className="mt-5 text-3xl font-bold">Kita + Metro</h1>
           <p className="mt-2 text-muted-foreground text-lg">
             Welcome back, kabayan!
           </p>

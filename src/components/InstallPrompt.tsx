@@ -111,14 +111,14 @@ export function InstallPrompt() {
   return (
     <div
       role="dialog"
-      aria-label="Install Trusted Riders"
+      aria-label="Install Kita + Metro"
       className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-md p-3"
     >
       <div className="rounded-2xl border border-border bg-background shadow-lg p-4">
         <div className="flex items-start gap-3">
           <img src="/icon-192.png" alt="" className="size-10 rounded-xl" />
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm">Install Trusted Riders</div>
+            <div className="font-semibold text-sm">Install Kita + Metro</div>
             <p className="mt-1 text-xs text-muted-foreground">
               Get faster access and a full-screen experience from your home screen.
             </p>

@@ -46,7 +46,7 @@ function InboxPage() {
             <InboxIcon className="size-7" /> Messages
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Messages from Trusted Riders administrators.
+            Messages from Kita + Metro administrators.
           </p>
         </header>
 
@@ -62,7 +62,7 @@ function InboxPage() {
         <ul className="space-y-3 pb-24">
           {(list.data ?? []).map((m) => {
             const unread = !m.read_at;
-            const senderName = m.sender_id ? "Admin" : "Trusted Riders";
+            const senderName = m.sender_id ? "Admin" : "Kita + Metro";
             return (
               <li
                 key={m.id}

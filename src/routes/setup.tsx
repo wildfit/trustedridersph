@@ -338,7 +338,7 @@ function Wizard({ onDone }: { onDone: () => void }) {
             <div>
               <h2 className="text-2xl font-bold">You're all set!</h2>
               <p className="mt-2 text-muted-foreground">
-                Welcome to Trusted Riders. Ingat sa daan!
+                Welcome to Kita + Metro. Ingat sa daan!
               </p>
             </div>
             <button onClick={onDone} className="btn-primary">

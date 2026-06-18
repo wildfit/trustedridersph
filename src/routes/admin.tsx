@@ -122,7 +122,7 @@ function SidebarContent() {
         <div className="size-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
           <Bike className="size-5" />
         </div>
-        <span className="font-bold">Trusted Riders</span>
+        <span className="font-bold">Kita + Metro</span>
       </div>
       <nav className="flex-1 p-2 space-y-1">
         {NAV.map((n) => {
