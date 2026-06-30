@@ -34,6 +34,18 @@ type Proposed = {
   fuel_tank_liters?: number;
 };
 
+/** Extract a storage path from either a stored path or a legacy public URL. */
+function avatarPathFromStored(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const marker = "/avatars/";
+  const i = v.indexOf(marker);
+  if (i >= 0) {
+    const rest = v.slice(i + marker.length);
+    return rest.split("?")[0];
+  }
+  return v.split("?")[0];
+}
+
 function ProfilePage() {
   const session = useAuthSession();
   const navigate = useNavigate();
