@@ -153,8 +153,8 @@ function ProfilePage() {
             className="relative size-32 rounded-full bg-primary/10 border-4 border-card shadow-md flex items-center justify-center overflow-hidden active:scale-[0.98] transition"
             aria-label="Change profile photo"
           >
-            {p?.avatar_url ? (
-              <img src={p.avatar_url} alt="" className="size-full object-cover" />
+            {avatarUrl.data ? (
+              <img src={avatarUrl.data} alt="" className="size-full object-cover" />
             ) : (
               <span className="text-3xl font-bold text-primary">{initials}</span>
             )}
