@@ -100,14 +100,13 @@ function ProfilePage() {
         .from("avatars")
         .upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-      const url = `${pub.publicUrl}?v=${Date.now()}`;
       const { error: dbErr } = await supabase
         .from("profiles")
-        .update({ avatar_url: url })
+        .update({ avatar_url: path })
         .eq("id", session.user.id);
       if (dbErr) throw dbErr;
       await profile.refetch();
+      await avatarUrl.refetch();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -117,6 +116,20 @@ function ProfilePage() {
   }
 
   const p = profile.data;
+  const avatarPath = avatarPathFromStored(p?.avatar_url);
+  const avatarUrl = useQuery({
+    queryKey: ["avatar-signed", avatarPath],
+    enabled: !!avatarPath,
+    staleTime: 50 * 60 * 1000,
+    queryFn: async () => {
+      if (!avatarPath) return null;
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(avatarPath, 60 * 60);
+      if (error) return null;
+      return data.signedUrl;
+    },
+  });
   const initials = (p?.full_name ?? session.user.email ?? "?")
     .split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase();
   const pending = (myRequests.data ?? []).filter((r) => r.status === "pending");
