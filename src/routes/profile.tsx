@@ -34,6 +34,18 @@ type Proposed = {
   fuel_tank_liters?: number;
 };
 
+/** Extract a storage path from either a stored path or a legacy public URL. */
+function avatarPathFromStored(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const marker = "/avatars/";
+  const i = v.indexOf(marker);
+  if (i >= 0) {
+    const rest = v.slice(i + marker.length);
+    return rest.split("?")[0];
+  }
+  return v.split("?")[0];
+}
+
 function ProfilePage() {
   const session = useAuthSession();
   const navigate = useNavigate();
@@ -67,6 +79,20 @@ function ProfilePage() {
     enabled: !!session,
     queryFn: () => fetchMyRequests(),
   });
+  const avatarPath = avatarPathFromStored(profile.data?.avatar_url);
+  const avatarUrl = useQuery({
+    queryKey: ["avatar-signed", avatarPath],
+    enabled: !!avatarPath,
+    staleTime: 50 * 60 * 1000,
+    queryFn: async () => {
+      if (!avatarPath) return null;
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(avatarPath, 60 * 60);
+      if (error) return null;
+      return data.signedUrl;
+    },
+  });
 
   if (session === undefined) return null;
   if (session === null) return <Navigate to="/login" />;
@@ -88,14 +114,13 @@ function ProfilePage() {
         .from("avatars")
         .upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("avatars").getPublicUrl(path);
-      const url = `${pub.publicUrl}?v=${Date.now()}`;
       const { error: dbErr } = await supabase
         .from("profiles")
-        .update({ avatar_url: url })
+        .update({ avatar_url: path })
         .eq("id", session.user.id);
       if (dbErr) throw dbErr;
       await profile.refetch();
+      await avatarUrl.refetch();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -128,8 +153,8 @@ function ProfilePage() {
             className="relative size-32 rounded-full bg-primary/10 border-4 border-card shadow-md flex items-center justify-center overflow-hidden active:scale-[0.98] transition"
             aria-label="Change profile photo"
           >
-            {p?.avatar_url ? (
-              <img src={p.avatar_url} alt="" className="size-full object-cover" />
+            {avatarUrl.data ? (
+              <img src={avatarUrl.data} alt="" className="size-full object-cover" />
             ) : (
               <span className="text-3xl font-bold text-primary">{initials}</span>
             )}
