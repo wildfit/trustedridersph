@@ -79,6 +79,20 @@ function ProfilePage() {
     enabled: !!session,
     queryFn: () => fetchMyRequests(),
   });
+  const avatarPath = avatarPathFromStored(profile.data?.avatar_url);
+  const avatarUrl = useQuery({
+    queryKey: ["avatar-signed", avatarPath],
+    enabled: !!avatarPath,
+    staleTime: 50 * 60 * 1000,
+    queryFn: async () => {
+      if (!avatarPath) return null;
+      const { data, error } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(avatarPath, 60 * 60);
+      if (error) return null;
+      return data.signedUrl;
+    },
+  });
 
   if (session === undefined) return null;
   if (session === null) return <Navigate to="/login" />;
