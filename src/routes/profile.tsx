@@ -130,20 +130,6 @@ function ProfilePage() {
   }
 
   const p = profile.data;
-  const avatarPath = avatarPathFromStored(p?.avatar_url);
-  const avatarUrl = useQuery({
-    queryKey: ["avatar-signed", avatarPath],
-    enabled: !!avatarPath,
-    staleTime: 50 * 60 * 1000,
-    queryFn: async () => {
-      if (!avatarPath) return null;
-      const { data, error } = await supabase.storage
-        .from("avatars")
-        .createSignedUrl(avatarPath, 60 * 60);
-      if (error) return null;
-      return data.signedUrl;
-    },
-  });
   const initials = (p?.full_name ?? session.user.email ?? "?")
     .split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase();
   const pending = (myRequests.data ?? []).filter((r) => r.status === "pending");
